@@ -1,4 +1,9 @@
-import pyodbc
+try:
+    import pymssql
+    USE_PYMSSQL = True
+except ImportError:
+    import pyodbc
+    USE_PYMSSQL = False
 import yaml
 import os
 from typing import Optional
@@ -65,40 +70,56 @@ def get_db_connection():
             if ":" in server_part:
                 server = server_part.split(":")[0]
                 port_part = server_part.split(":")[1]
-                port = port_part.split(";")[0] if ";" in port_part else port_part
+                port = int(port_part.split(";")[0] if ";" in port_part else port_part)
             else:
                 server = server_part.split(";")[0] if ";" in server_part else server_part
-                port = "1433"
+                port = 1433
         else:
             server = "localhost"
-            port = "1433"
+            port = 1433
         
-        drivers = [
-            "ODBC Driver 18 for SQL Server",
-            "ODBC Driver 17 for SQL Server",
-            "ODBC Driver 13 for SQL Server",
-            "SQL Server"
-        ]
-        
-        conn = None
-        for driver in drivers:
+        # Sử dụng pymssql nếu có (không cần ODBC drivers)
+        if USE_PYMSSQL:
             try:
-                conn_str = (
-                    f"DRIVER={{{driver}}};"
-                    f"SERVER={server},{port};"
-                    f"DATABASE={database};"
-                    f"UID={username};"
-                    f"PWD={password};"
-                    f"TrustServerCertificate=yes;"
+                conn = pymssql.connect(
+                    server=server,
+                    port=port,
+                    user=username,
+                    password=password,
+                    database=database,
+                    timeout=10
                 )
-                conn = pyodbc.connect(conn_str)
-                break
             except Exception as e:
-                print(f"Thử driver {driver} thất bại: {e}")
-                continue
-        
-        if not conn:
-            raise Exception("Không thể kết nối với bất kỳ ODBC driver nào")
+                print(f"Lỗi kết nối với pymssql: {e}")
+                raise Exception(f"Không thể kết nối database với pymssql: {e}")
+        else:
+            # Fallback: sử dụng pyodbc (cần ODBC drivers)
+            drivers = [
+                "ODBC Driver 18 for SQL Server",
+                "ODBC Driver 17 for SQL Server",
+                "ODBC Driver 13 for SQL Server",
+                "SQL Server"
+            ]
+            
+            conn = None
+            for driver in drivers:
+                try:
+                    conn_str = (
+                        f"DRIVER={{{driver}}};"
+                        f"SERVER={server},{port};"
+                        f"DATABASE={database};"
+                        f"UID={username};"
+                        f"PWD={password};"
+                        f"TrustServerCertificate=yes;"
+                    )
+                    conn = pyodbc.connect(conn_str)
+                    break
+                except Exception as e:
+                    print(f"Thử driver {driver} thất bại: {e}")
+                    continue
+            
+            if not conn:
+                raise Exception("Không thể kết nối với bất kỳ ODBC driver nào")
         
         return conn
     except Exception as e:

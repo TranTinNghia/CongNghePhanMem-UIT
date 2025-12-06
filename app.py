@@ -4,7 +4,12 @@ import traceback
 from functools import wraps
 
 import bcrypt
-import pyodbc
+try:
+    import pymssql
+    USE_PYMSSQL = True
+except ImportError:
+    import pyodbc
+    USE_PYMSSQL = False
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from utils.ocr_processor import OCRProcessor
 from features.ocr.managers.customers import CustomerManager
@@ -267,7 +272,17 @@ def register():
                 flash("Đăng ký thành công! Vui lòng đăng nhập.", "success")
                 conn.close()
                 return redirect(url_for("login"))
-            except pyodbc.IntegrityError as ie:
+            except Exception as ie:
+                # Xử lý cả pymssql và pyodbc IntegrityError
+                error_type = type(ie).__name__
+                if USE_PYMSSQL:
+                    # pymssql raises pymssql.IntegrityError
+                    if error_type != 'IntegrityError':
+                        raise
+                else:
+                    # pyodbc raises pyodbc.IntegrityError
+                    if error_type != 'IntegrityError':
+                        raise
                 conn.rollback()
                 conn.close()
                 error_msg = str(ie).lower()
