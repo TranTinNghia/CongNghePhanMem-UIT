@@ -125,27 +125,43 @@ netstat -an | findstr 1433
 - **KHÔNG** dùng cho production với dữ liệu thật
 - Đảm bảo SQL Server có password mạnh
 
-## Giải pháp thay thế: Cloudflare Tunnel (Miễn phí, URL cố định)
+## Giải pháp thay thế: Cloudflare Tunnel (Miễn phí, Không cần thẻ)
 
 ### Bước 1: Cài đặt cloudflared
 ```bash
-# Windows: Tải từ https://github.com/cloudflare/cloudflared/releases
+# Windows: Tải từ https://github.com/cloudflare/cloudflared/releases/latest
+# Tải cloudflared-windows-amd64.exe, đổi tên thành cloudflared.exe
+
 # Linux/Mac:
 wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
 chmod +x cloudflared-linux-amd64
 sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
 ```
 
-### Bước 2: Tạo tunnel
+### Bước 2: Đăng nhập Cloudflare
 ```bash
-cloudflared tunnel create sql-tunnel
-cloudflared tunnel route dns sql-tunnel sql.yourdomain.com
+cloudflared tunnel login
+```
+Lệnh này sẽ mở trình duyệt để đăng nhập Cloudflare (đăng ký miễn phí nếu chưa có).
+
+### Bước 3: Chạy tunnel đơn giản (Quick Tunnel)
+```bash
+cloudflared tunnel --url tcp://localhost:1433
 ```
 
-### Bước 3: Chạy tunnel
-```bash
-cloudflared tunnel run sql-tunnel
+Bạn sẽ thấy output:
 ```
++--------------------------------------------------------------------------------------------+
+|  Your quick Tunnel has been created! Visit it at:                                         |
+|  tcp://abc123def456.trycloudflare.com:54321                                               |
++--------------------------------------------------------------------------------------------+
+```
+
+Copy URL này để dùng trong DB_URL trên Render.
+
+### Bước 4: Cấu hình trên Render
+- **DB_URL**: `jdbc:sqlserver://abc123def456.trycloudflare.com:54321;databaseName=btn;encrypt=true;trustServerCertificate=true`
+  (Thay bằng URL từ Cloudflare tunnel)
 
 ## Troubleshooting
 
