@@ -150,7 +150,12 @@ def get_db_connection():
                     timeout=10
                 )
             except Exception as e:
+                error_msg = str(e)
                 print(f"Lỗi kết nối với pymssql: {e}")
+                # Kiểm tra nếu là lỗi kết nối qua tunnel
+                if "Unexpected EOF" in error_msg or "connection failed" in error_msg.lower():
+                    print("\n⚠️  CẢNH BÁO: Cloudflare Quick Tunnel có thể không hỗ trợ TCP cho SQL Server.")
+                    print("   Vui lòng xem file CLOUDFLARE_TCP_FIX.md để biết các giải pháp thay thế.")
                 raise Exception(f"Không thể kết nối database với pymssql: {e}")
         else:
             # Fallback: sử dụng pyodbc (cần ODBC drivers)
