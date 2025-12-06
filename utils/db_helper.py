@@ -9,6 +9,31 @@ import os
 from typing import Optional
 
 
+class CursorWrapper:
+    """Wrapper cho cursor để chuyển đổi ? thành %s cho pymssql"""
+    def __init__(self, cursor, is_pymssql):
+        self._cursor = cursor
+        self._is_pymssql = is_pymssql
+    
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+    
+    def execute(self, query, params=None):
+        if self._is_pymssql and params is not None:
+            # Chuyển đổi ? thành %s cho pymssql
+            query = query.replace('?', '%s')
+        if params:
+            return self._cursor.execute(query, params)
+        else:
+            return self._cursor.execute(query)
+    
+    def executemany(self, query, params_list):
+        if self._is_pymssql:
+            # Chuyển đổi ? thành %s cho pymssql
+            query = query.replace('?', '%s')
+        return self._cursor.executemany(query, params_list)
+
+
 class ConnectionWrapper:
     """Wrapper để xử lý sự khác biệt giữa pymssql và pyodbc"""
     def __init__(self, conn):
@@ -30,6 +55,11 @@ class ConnectionWrapper:
             super().__setattr__(name, value)
         else:
             setattr(self._conn, name, value)
+    
+    def cursor(self):
+        """Trả về wrapped cursor để tự động chuyển đổi ? thành %s"""
+        cursor = self._conn.cursor()
+        return CursorWrapper(cursor, self._is_pymssql)
     
     def __enter__(self):
         return self
