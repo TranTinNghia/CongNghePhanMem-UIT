@@ -1,13 +1,34 @@
 import pyodbc
 import yaml
+import os
 from typing import Optional
 
 
 def load_config():
+    # Ưu tiên đọc từ environment variables (cho production/deploy)
+    db_url = os.environ.get('DB_URL')
+    db_username = os.environ.get('DB_USERNAME')
+    db_password = os.environ.get('DB_PASSWORD')
+    db_name = os.environ.get('DB_NAME', 'btn')
+    
+    if db_url and db_username and db_password:
+        # Tạo config từ environment variables
+        return {
+            "url": db_url,
+            "username": db_username,
+            "password": db_password,
+            "database": db_name
+        }
+    
+    # Fallback: đọc từ file config.yaml (cho local development)
     try:
         with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         return config["users"]
+    except FileNotFoundError:
+        print("Lỗi đọc config: File config/config.yaml không tồn tại và không có environment variables")
+        print("Vui lòng tạo file config/config.yaml hoặc set các environment variables: DB_URL, DB_USERNAME, DB_PASSWORD")
+        return None
     except Exception as e:
         print(f"Lỗi đọc config: {e}")
         return None
@@ -19,8 +40,26 @@ def get_db_connection():
         return None
     
     try:
-        url = config["url"]
+        # Xử lý cả environment variables và file config
+        if "database" in config:
+            # Từ environment variables
+            url = config["url"]
+            username = config["username"]
+            password = config["password"]
+            database = config["database"]
+        else:
+            # Từ file config.yaml
+            url = config["url"]
+            username = config["username"]
+            password = config["password"]
+            
+            # Parse database từ URL
+            if "databaseName=" in url:
+                database = url.split("databaseName=")[1].split(";")[0]
+            else:
+                database = "btn"
         
+        # Parse server và port từ URL
         if "//" in url:
             server_part = url.split("//")[1]
             if ":" in server_part:
@@ -33,11 +72,6 @@ def get_db_connection():
         else:
             server = "localhost"
             port = "1433"
-        
-        if "databaseName=" in url:
-            database = url.split("databaseName=")[1].split(";")[0]
-        else:
-            database = "btn"
         
         drivers = [
             "ODBC Driver 18 for SQL Server",
@@ -53,13 +87,14 @@ def get_db_connection():
                     f"DRIVER={{{driver}}};"
                     f"SERVER={server},{port};"
                     f"DATABASE={database};"
-                    f"UID={config['username']};"
-                    f"PWD={config['password']};"
+                    f"UID={username};"
+                    f"PWD={password};"
                     f"TrustServerCertificate=yes;"
                 )
                 conn = pyodbc.connect(conn_str)
                 break
-            except:
+            except Exception as e:
+                print(f"Thử driver {driver} thất bại: {e}")
                 continue
         
         if not conn:
@@ -68,5 +103,7 @@ def get_db_connection():
         return conn
     except Exception as e:
         print(f"Lỗi kết nối database: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
