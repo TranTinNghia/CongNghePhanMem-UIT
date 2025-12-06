@@ -2,8 +2,15 @@
 
 ## Vấn đề
 Render mặc định dùng Python 3.13, nhưng bạn muốn dùng Python 3.10.12.
+pyodbc 5.0.1 không tương thích với Python 3.13 (lỗi compile).
 
-## Giải pháp: Chỉ định trong Render Dashboard
+## Giải pháp: Sử dụng file .python-version (Khuyến nghị)
+
+File `.python-version` đã được tạo trong repository. Render sẽ tự động đọc file này và dùng Python 3.10.12.
+
+Nếu vẫn không hoạt động, thử các cách sau:
+
+## Giải pháp 2: Chỉ định trong Render Dashboard
 
 ### Bước 1: Vào Settings
 1. Đăng nhập [Render Dashboard](https://dashboard.render.com)
