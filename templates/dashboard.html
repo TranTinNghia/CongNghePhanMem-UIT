@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Application{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <div class="welcome-section">
+            <h1 class="welcome-title">Chào mừng trở lại, <span class="username">{{ full_name }}</span>!</h1>
+        </div>
+    </div>
+
+    <div class="dashboard-content">
+        <div class="features-grid {% if is_admin %}features-grid-4{% else %}features-grid-3{% endif %}">
+            {# Quét OCR: ADMIN và EDITOR có thể truy cập, VIEWER chỉ xem (mờ) #}
+            {% set can_access_ocr = user_role == 'ADMIN' or user_role == 'EDITOR' %}
+            {% set show_ocr_disabled = user_role == 'VIEWER' %}
+            
+            {% if can_access_ocr %}
+            <a href="{{ url_for('ocr') }}" style="text-decoration: none; color: inherit;">
+            {% else %}
+            <div style="text-decoration: none; color: inherit; pointer-events: none;">
+            {% endif %}
+                <div class="feature-card {% if show_ocr_disabled %}feature-card-disabled{% endif %}" style="--card-color: #667eea; --card-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-icon">📷</div>
+                    <div class="card-content">
+                        <h3 class="card-title">Quét OCR</h3>
+                        <p class="card-description">Quét và nhận dạng văn bản từ hình ảnh, tài liệu</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+            {% if can_access_ocr %}
+            </a>
+            {% else %}
+            </div>
+            {% endif %}
+
+            {# Tra cứu thông tin khách hàng: Tất cả đều có thể truy cập #}
+            <a href="{{ url_for('customer_search') }}" style="text-decoration: none; color: inherit;">
+                <div class="feature-card" style="--card-color: #f093fb; --card-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="card-icon">🔍</div>
+                    <div class="card-content">
+                        <h3 class="card-title">Tra cứu thông tin khách hàng</h3>
+                        <p class="card-description">Tìm kiếm và xem thông tin chi tiết khách hàng</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+            </a>
+
+            {% if is_admin %}
+            <a href="{{ url_for('role_management') }}" style="text-decoration: none; color: inherit;">
+                <div class="feature-card" style="--card-color: #fa709a; --card-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                    <div class="card-icon">👥</div>
+                    <div class="card-content">
+                        <h3 class="card-title">Quản lý vai trò</h3>
+                        <p class="card-description">Phân quyền và quản lý vai trò người dùng</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+            </a>
+            {% endif %}
+
+            {# Báo cáo Dashboard: Tất cả đều có thể truy cập #}
+            <a href="{{ url_for('dashboard_report') }}" style="text-decoration: none; color: inherit;">
+                <div class="feature-card" style="--card-color: #4facfe; --card-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="card-icon">📊</div>
+                    <div class="card-content">
+                        <h3 class="card-title">Báo cáo Dashboard</h3>
+                        <p class="card-description">Xem thống kê và báo cáo tổng quan hệ thống</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+            </a>
+        </div>
+
+        <div class="quick-stats">
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-info">
+                    <p class="stat-value" id="customer-count">0</p>
+                    <p class="stat-label">Tổng số khách hàng</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📄</div>
+                <div class="stat-info">
+                    <p class="stat-value" id="document-count">0</p>
+                    <p class="stat-label">Tài liệu đã quét</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateStats(stats) {
+        if (stats.customer_count !== undefined) {
+            const countElement = document.getElementById('customer-count');
+            if (countElement) {
+                countElement.style.transition = 'all 0.3s ease';
+                countElement.textContent = stats.customer_count;
+            }
+        }
+        if (stats.document_count !== undefined) {
+            const countElement = document.getElementById('document-count');
+            if (countElement) {
+                countElement.style.transition = 'all 0.3s ease';
+                countElement.textContent = stats.document_count;
+            }
+        }
+    }
+
+    function fetchCustomerCount() {
+        fetch('/api/customers/count')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const countElement = document.getElementById('customer-count');
+                    if (countElement) {
+                        countElement.style.transition = 'all 0.3s ease';
+                        countElement.textContent = data.count;
+                    }
+                } else {
+                    console.error('Lỗi khi lấy số lượng khách hàng:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Lỗi khi gọi API:', error);
+            });
+    }
+
+    function fetchDocumentCount() {
+        fetch('/api/documents/count')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const countElement = document.getElementById('document-count');
+                    if (countElement) {
+                        countElement.style.transition = 'all 0.3s ease';
+                        countElement.textContent = data.count;
+                    }
+                } else {
+                    console.error('Lỗi khi lấy số lượng tài liệu:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Lỗi khi gọi API:', error);
+            });
+    }
+
+    const statsChannel = new BroadcastChannel('dashboard_stats');
+    statsChannel.onmessage = function(event) {
+        if (event.data && event.data.type === 'stats_update') {
+            updateStats(event.data.stats);
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchCustomerCount();
+        fetchDocumentCount();
+    });
+</script>
+{% endblock %}
+

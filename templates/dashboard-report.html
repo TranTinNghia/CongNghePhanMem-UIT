@@ -1,0 +1,1368 @@
+{% extends "base.html" %}
+
+{% block title %}Báo cáo Dashboard - BaiTapNhom{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-report.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-report-container">
+    <div class="report-header">
+        <h1>📊 Báo cáo Dashboard</h1>
+        <p class="report-subtitle">Thống kê và báo cáo tổng quan hệ thống</p>
+    </div>
+
+    <div class="filters-section">
+        <div class="filter-group">
+            <label>Khách hàng:</label>
+            <div class="custom-dropdown" id="customerDropdown">
+                <div class="dropdown-toggle" onclick="toggleDropdown('customer')">
+                    <span class="dropdown-text" id="customerDropdownText">-- Chọn khách hàng --</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-menu" id="customerDropdownMenu">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="selectAllCustomers" onchange="toggleAllCustomers()">
+                        <span>Tất cả khách hàng</span>
+                    </label>
+                    <div class="checkbox-container" id="customerFilterContainer"></div>
+                </div>
+            </div>
+        </div>
+        <div class="filter-group">
+            <label>Tháng:</label>
+            <div class="custom-dropdown" id="monthDropdown">
+                <div class="dropdown-toggle" onclick="toggleDropdown('month')">
+                    <span class="dropdown-text" id="monthDropdownText">-- Chọn tháng --</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-menu" id="monthDropdownMenu">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="selectAllMonths" onchange="toggleAllMonths()">
+                        <span>Tất cả tháng</span>
+                    </label>
+                    <div class="checkbox-container" id="monthFilterContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <div class="stat-label">Tổng số khách hàng</div>
+                <div class="stat-value" id="totalCustomers">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2>📈 Doanh thu theo Khách hàng và theo tháng</h2>
+        <div class="chart-with-legend">
+            <div class="chart-wrapper">
+                <div class="chart-container-scrollable">
+                    <canvas id="revenueContainerChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-legend-container" id="revenueChartLegend"></div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2>📦 Tổng số Container theo Khách hàng và theo tháng</h2>
+        <div class="chart-with-legend">
+            <div class="chart-wrapper">
+                <div class="chart-container-scrollable">
+                    <canvas id="containerChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-legend-container" id="containerChartLegend"></div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2>📦 Tổng số lượng Container theo Kích cỡ và theo Tháng</h2>
+        <div class="chart-with-legend">
+            <div class="chart-wrapper">
+                <div class="chart-container-scrollable">
+                    <canvas id="containerUsageChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-legend-container" id="containerUsageChartLegend"></div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2>📦 Tổng số lượng Container theo Loại và theo Tháng</h2>
+        <div class="chart-with-legend">
+            <div class="chart-wrapper">
+                <div class="chart-container-scrollable">
+                    <canvas id="containerTypeChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-legend-container" id="containerTypeChartLegend"></div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2>📍 Phân bố Khách hàng theo Tỉnh thành</h2>
+        <div class="chart-container">
+            <canvas id="customersByProvinceChart"></canvas>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2>💰 Doanh thu theo Tỉnh thành</h2>
+        <div class="chart-container">
+            <canvas id="revenueByProvinceChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let customersByProvinceChart = null;
+let revenueByProvinceChart = null;
+let revenueContainerChart = null;
+let containerChart = null;
+let containerUsageChart = null;
+let containerTypeChart = null;
+
+// Flag để tránh vòng lặp khi sync tooltip
+let isSyncingCharts = false;
+
+// Hàm để highlight một tháng trên tất cả các biểu đồ (trừ biểu đồ nguồn)
+function highlightMonthAcrossCharts(monthLabel, sourceChart, event) {
+    if (isSyncingCharts) return; // Tránh vòng lặp
+    
+    isSyncingCharts = true;
+    
+    const charts = [
+        { chart: revenueContainerChart, name: 'revenueContainerChart' },
+        { chart: containerChart, name: 'containerChart' },
+        { chart: containerUsageChart, name: 'containerUsageChart' },
+        { chart: containerTypeChart, name: 'containerTypeChart' }
+    ];
+    
+    charts.forEach(({ chart, name }) => {
+        if (chart && chart !== sourceChart && monthLabel) {
+            const monthIndex = chart.data.labels.indexOf(monthLabel);
+            if (monthIndex !== -1) {
+                // Set hover state cho tất cả datasets tại index này
+                const activeElements = chart.data.datasets.map((dataset, datasetIndex) => ({
+                    datasetIndex: datasetIndex,
+                    index: monthIndex
+                }));
+                chart.setActiveElements(activeElements);
+                
+                // Hiển thị tooltip trên biểu đồ khác
+                if (event && chart.tooltip) {
+                    try {
+                        const canvas = chart.canvas;
+                        const rect = canvas.getBoundingClientRect();
+                        const scale = chart.scales.x;
+                        
+                        // Tính toán vị trí của bar (tính từ left của scale)
+                        let xPos;
+                        if (scale.getPixelForValue) {
+                            xPos = scale.getPixelForValue(monthIndex);
+                        } else {
+                            // Fallback: tính toán thủ công
+                            const barWidth = scale.width / chart.data.labels.length;
+                            xPos = scale.left + (monthIndex + 0.5) * barWidth;
+                        }
+                        
+                        // Tính toán vị trí Y (giữa canvas)
+                        const yPos = scale.bottom - (scale.bottom - scale.top) / 2;
+                        
+                        // Set active elements và vị trí cho tooltip
+                        chart.tooltip.setActiveElements(activeElements, { x: xPos, y: yPos });
+                        
+                        // Force update tooltip
+                        chart.tooltip.update(true);
+                    } catch (e) {
+                        // Nếu có lỗi, chỉ highlight mà không hiển thị tooltip
+                        console.log('Error showing tooltip:', e);
+                    }
+                }
+                
+                chart.update('none'); // 'none' để không trigger animation
+            }
+        }
+    });
+    
+    isSyncingCharts = false;
+}
+
+// Hàm để reset highlight trên tất cả các biểu đồ
+function resetHighlightAcrossCharts() {
+    const charts = [revenueContainerChart, containerChart, containerUsageChart, containerTypeChart];
+    charts.forEach(chart => {
+        if (chart) {
+            chart.setActiveElements([]);
+            if (chart.tooltip) {
+                chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+            }
+            chart.update('none');
+        }
+    });
+}
+
+// Hàm để thêm event listeners cho một biểu đồ
+function addChartInteractionListeners(chart, canvasId) {
+    if (!chart) return;
+    
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    // Xóa các event listeners cũ nếu có (bằng cách clone canvas)
+    // Lưu trữ các handlers để có thể xóa sau
+    if (!canvas._chartInteractionHandlers) {
+        canvas._chartInteractionHandlers = {};
+    }
+    
+    // Xóa handlers cũ nếu có
+    if (canvas._chartInteractionHandlers.mousemove) {
+        canvas.removeEventListener('mousemove', canvas._chartInteractionHandlers.mousemove);
+    }
+    if (canvas._chartInteractionHandlers.mouseleave) {
+        canvas.removeEventListener('mouseleave', canvas._chartInteractionHandlers.mouseleave);
+    }
+    
+    // Tạo handlers mới
+    const mousemoveHandler = function(event) {
+        if (isSyncingCharts) return; // Bỏ qua nếu đang sync
+        
+        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+        if (points.length > 0) {
+            const firstPoint = points[0];
+            const monthLabel = chart.data.labels[firstPoint.index];
+            highlightMonthAcrossCharts(monthLabel, chart, event);
+        } else {
+            resetHighlightAcrossCharts();
+        }
+    };
+    
+    const mouseleaveHandler = function() {
+        resetHighlightAcrossCharts();
+    };
+    
+    // Lưu handlers để có thể xóa sau
+    canvas._chartInteractionHandlers.mousemove = mousemoveHandler;
+    canvas._chartInteractionHandlers.mouseleave = mouseleaveHandler;
+    
+    // Thêm event listeners
+    canvas.addEventListener('mousemove', mousemoveHandler);
+    canvas.addEventListener('mouseleave', mouseleaveHandler);
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+    }).format(amount);
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('vi-VN').format(num);
+}
+
+async function loadTotalCustomers() {
+    try {
+        const response = await fetch('/api/dashboard/total-customers');
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('totalCustomers').textContent = formatNumber(result.data);
+        }
+    } catch (error) {
+        console.error('Error loading total customers:', error);
+    }
+}
+
+function getFilterParams() {
+    const selectAllCustomers = document.getElementById('selectAllCustomers').checked;
+    const selectAllMonths = document.getElementById('selectAllMonths').checked;
+    
+    const params = new URLSearchParams();
+    
+    // Luôn gửi customer_key để filter được áp dụng
+    if (selectAllCustomers) {
+        // Nếu chọn "Tất cả khách hàng", gửi tất cả customer_keys
+        if (allCustomersList && allCustomersList.length > 0) {
+            allCustomersList.forEach(customer => {
+                params.append('customer_key', customer.customer_key);
+            });
+        }
+    } else {
+        // Nếu chọn một số khách hàng cụ thể, gửi các customer_keys đã chọn
+        const customerCheckboxes = document.querySelectorAll('#customerFilterContainer input[type="checkbox"]:not(#selectAllCustomers):checked');
+        if (customerCheckboxes.length > 0) {
+            customerCheckboxes.forEach(cb => {
+                if (cb.value) {
+                    params.append('customer_key', cb.value);
+                }
+            });
+        }
+    }
+    
+    console.log('getFilterParams - customer_keys:', Array.from(params.getAll('customer_key')));
+    
+    // Luôn gửi month_year để filter được áp dụng
+    if (selectAllMonths) {
+        // Nếu chọn "Tất cả tháng", gửi tất cả month_years
+        if (allMonths && allMonths.length > 0) {
+            allMonths.forEach(month => {
+                params.append('month_year', month);
+            });
+        }
+    } else {
+        // Nếu chọn một số tháng cụ thể, gửi các month_years đã chọn
+        const monthCheckboxes = document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:checked');
+        monthCheckboxes.forEach(cb => {
+            params.append('month_year', cb.value);
+        });
+    }
+    
+    return params.toString();
+}
+
+function toggleDropdown(type) {
+    const dropdown = document.getElementById(`${type}Dropdown`);
+    const menu = document.getElementById(`${type}DropdownMenu`);
+    const toggle = dropdown.querySelector('.dropdown-toggle');
+    
+    const isActive = toggle.classList.contains('active');
+    
+    document.querySelectorAll('.custom-dropdown .dropdown-toggle').forEach(t => {
+        t.classList.remove('active');
+    });
+    document.querySelectorAll('.dropdown-menu').forEach(m => {
+        m.classList.remove('show');
+    });
+    
+    if (!isActive) {
+        toggle.classList.add('active');
+        menu.classList.add('show');
+    }
+}
+
+function updateDropdownText(type) {
+    const selectAll = document.getElementById(`selectAll${type === 'customer' ? 'Customers' : 'Months'}`);
+    const checkboxes = document.querySelectorAll(`#${type}FilterContainer input[type="checkbox"]`);
+    const dropdownText = document.getElementById(`${type}DropdownText`);
+    
+    const checked = Array.from(checkboxes).filter(cb => cb.checked);
+    const allChecked = selectAll.checked;
+    
+    if (allChecked || checked.length === checkboxes.length) {
+        dropdownText.textContent = `Tất cả ${type === 'customer' ? 'khách hàng' : 'tháng'}`;
+    } else if (checked.length === 0) {
+        dropdownText.textContent = `-- Chọn ${type === 'customer' ? 'khách hàng' : 'tháng'} --`;
+    } else if (checked.length === 1) {
+        const label = checked[0].closest('label').querySelector('span').textContent;
+        dropdownText.textContent = label;
+    } else {
+        dropdownText.textContent = `Đã chọn ${checked.length} ${type === 'customer' ? 'khách hàng' : 'tháng'}`;
+    }
+}
+
+function toggleAllCustomers() {
+    const selectAll = document.getElementById('selectAllCustomers');
+    const checkboxes = document.querySelectorAll('#customerFilterContainer input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+    });
+    updateDropdownText('customer');
+    loadAllData();
+}
+
+function toggleAllMonths() {
+    const selectAll = document.getElementById('selectAllMonths');
+    const checkboxes = document.querySelectorAll('#monthFilterContainer input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+    });
+    updateDropdownText('month');
+    loadAllData();
+}
+
+let allCustomersList = [];
+
+async function loadFilters() {
+    try {
+        const [customersRes, monthsRes] = await Promise.all([
+            fetch('/api/dashboard/customers-list'),
+            fetch('/api/dashboard/months-list')
+        ]);
+        
+        const customersData = await customersRes.json();
+        const monthsData = await monthsRes.json();
+        
+        if (customersData.success) {
+            allCustomersList = customersData.data;
+            const container = document.getElementById('customerFilterContainer');
+            customersData.data.forEach(customer => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-label';
+                label.innerHTML = `
+                    <input type="checkbox" value="${customer.customer_key}" data-tax-code="${customer.tax_code}" data-customer-name="${customer.customer_name}" onchange="updateDropdownText('customer'); loadAllData();" checked>
+                    <span>${customer.customer_name} (${customer.tax_code})</span>
+                `;
+                container.appendChild(label);
+            });
+            document.getElementById('selectAllCustomers').checked = true;
+            updateDropdownText('customer');
+        }
+        
+        if (monthsData.success) {
+            allMonths = monthsData.data;
+            const container = document.getElementById('monthFilterContainer');
+            monthsData.data.forEach(month => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-label';
+                label.innerHTML = `
+                    <input type="checkbox" value="${month}" onchange="updateDropdownText('month'); loadAllData();" checked>
+                    <span>${month}</span>
+                `;
+                container.appendChild(label);
+            });
+            document.getElementById('selectAllMonths').checked = true;
+            updateDropdownText('month');
+        }
+    } catch (error) {
+        console.error('Error loading filters:', error);
+    }
+}
+
+let allMonths = [];
+
+async function loadCustomerMonthlyRevenue() {
+    try {
+        const params = getFilterParams();
+        const response = await fetch(`/api/dashboard/customer-monthly-revenue?${params}`);
+        const result = await response.json();
+        
+        if (!allMonths.length) {
+            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsData = await monthsRes.json();
+            if (monthsData.success) {
+                allMonths = monthsData.data;
+            }
+        }
+        
+        if (result.success) {
+            const ctx = document.getElementById('revenueContainerChart').getContext('2d');
+            
+            const allCustomerCheckboxes = document.querySelectorAll('#customerFilterContainer input[type="checkbox"]:not(#selectAllCustomers)');
+            const allMonthCheckboxes = document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:not(#selectAllMonths)');
+            
+            const selectAllCustomersChecked = document.getElementById('selectAllCustomers').checked;
+            const selectAllMonthsChecked = document.getElementById('selectAllMonths').checked;
+            
+            let selectedCustomers = [];
+            if (selectAllCustomersChecked) {
+                selectedCustomers = allCustomersList.map(c => ({
+                    key: c.customer_key,
+                    tax_code: c.tax_code,
+                    customer_name: c.customer_name
+                }));
+            } else {
+                selectedCustomers = Array.from(document.querySelectorAll('#customerFilterContainer input[type="checkbox"]:not(#selectAllCustomers):checked'))
+                    .map(cb => ({
+                        key: cb.value,
+                        tax_code: cb.dataset.taxCode,
+                        customer_name: cb.dataset.customerName
+                    }));
+            }
+            
+            let selectedMonths = [];
+            if (selectAllMonthsChecked) {
+                selectedMonths = allMonths;
+            } else {
+                selectedMonths = Array.from(document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:not(#selectAllMonths):checked'))
+                    .map(cb => cb.value);
+            }
+            
+            const monthsToShow = selectedMonths.length > 0 ? selectedMonths : allMonths;
+            
+            const dataMap = {};
+            result.data.forEach(d => {
+                const key = `${d.customer_key}_${d.month_year}`;
+                dataMap[key] = d;
+            });
+            
+            const datasets = [];
+            const colors = [
+                { bar: 'rgba(102, 126, 234, 0.8)', line: 'rgba(102, 126, 234, 1)' },
+                { bar: 'rgba(240, 147, 251, 0.8)', line: 'rgba(240, 147, 251, 1)' },
+                { bar: 'rgba(76, 175, 80, 0.8)', line: 'rgba(76, 175, 80, 1)' },
+                { bar: 'rgba(255, 152, 0, 0.8)', line: 'rgba(255, 152, 0, 1)' },
+                { bar: 'rgba(33, 150, 243, 0.8)', line: 'rgba(33, 150, 243, 1)' },
+                { bar: 'rgba(156, 39, 176, 0.8)', line: 'rgba(156, 39, 176, 1)' }
+            ];
+            
+            selectedCustomers.forEach((customer, idx) => {
+                const revenueData = monthsToShow.map(month => {
+                    const key = `${customer.key}_${month}`;
+                    return dataMap[key] ? dataMap[key].total_revenue : 0;
+                });
+                
+                const color = colors[idx % colors.length];
+                
+                datasets.push({
+                    label: `${customer.customer_name} (${customer.tax_code})`,
+                    data: revenueData,
+                    type: 'bar',
+                    backgroundColor: color.bar,
+                    borderColor: color.line,
+                    borderWidth: 1,
+                    yAxisID: 'y',
+                    customer_key: customer.key,
+                    tax_code: customer.tax_code,
+                    customer_name: customer.customer_name
+                });
+            });
+            
+            if (revenueContainerChart) {
+                revenueContainerChart.destroy();
+            }
+            
+            const canvas = document.getElementById('revenueContainerChart');
+            // Giữ kích thước cố định dựa trên số tháng tối đa có thể có
+            const maxMonths = allMonths.length > 0 ? allMonths.length : monthsToShow.length;
+            canvas.width = Math.max(maxMonths * 80, 1200); // Tối thiểu 1200px để đảm bảo biểu đồ không quá nhỏ
+            canvas.height = 700;
+            
+            revenueContainerChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthsToShow,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    devicePixelRatio: 1,
+                    layout: {
+                        padding: {
+                            right: 20,
+                            left: 50,
+                            top: 20,
+                            bottom: 50
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                },
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                // Với mode: 'nearest', chỉ dataset gần nhất được hover
+                                return true;
+                            },
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const dataset = context.dataset;
+                                    const dataIndex = context.dataIndex;
+                                    const value = dataset.data[dataIndex] || 0;
+                                    
+                                    return `Tổng doanh thu: ${formatCurrency(value)}`;
+                                },
+                                afterBody: function(context) {
+                                    // Hiển thị tên khách hàng và mã số thuế
+                                    if (context.length > 0) {
+                                        const dataset = context[0].dataset;
+                                        if (dataset.customer_name) {
+                                            return [`${dataset.customer_name} (${dataset.tax_code})`];
+                                        }
+                                    }
+                                    return [];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Thêm event listeners cho tương tác đồng bộ
+            addChartInteractionListeners(revenueContainerChart, 'revenueContainerChart');
+            
+            if (selectedCustomers && colors) {
+                updateChartLegend(selectedCustomers, colors);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading customer monthly revenue:', error);
+    }
+}
+
+function updateChartLegend(customers, colors) {
+    const legendContainer = document.getElementById('revenueChartLegend');
+    legendContainer.innerHTML = '';
+    
+    customers.forEach((customer, idx) => {
+        const color = colors[idx % colors.length];
+        const legendItem = document.createElement('div');
+        legendItem.className = 'chart-legend-item';
+        legendItem.innerHTML = `
+            <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
+            <div class="chart-legend-text">${customer.customer_name} (${customer.tax_code})</div>
+        `;
+        legendContainer.appendChild(legendItem);
+    });
+}
+
+function updateContainerChartLegend(customers, colors) {
+    const legendContainer = document.getElementById('containerChartLegend');
+    legendContainer.innerHTML = '';
+    
+    customers.forEach((customer, idx) => {
+        const color = colors[idx % colors.length];
+        const legendItem = document.createElement('div');
+        legendItem.className = 'chart-legend-item';
+        legendItem.innerHTML = `
+            <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
+            <div class="chart-legend-text">${customer.customer_name} (${customer.tax_code})</div>
+        `;
+        legendContainer.appendChild(legendItem);
+    });
+}
+
+async function loadCustomerMonthlyContainer() {
+    try {
+        const params = getFilterParams();
+        const response = await fetch(`/api/dashboard/customer-monthly-revenue?${params}`);
+        const result = await response.json();
+        
+        if (!allMonths.length) {
+            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsData = await monthsRes.json();
+            if (monthsData.success) {
+                allMonths = monthsData.data;
+            }
+        }
+        
+        if (result.success) {
+            const ctx = document.getElementById('containerChart').getContext('2d');
+            
+            const selectAllCustomersChecked = document.getElementById('selectAllCustomers').checked;
+            const selectAllMonthsChecked = document.getElementById('selectAllMonths').checked;
+            
+            let selectedCustomers = [];
+            if (selectAllCustomersChecked) {
+                selectedCustomers = allCustomersList.map(c => ({
+                    key: c.customer_key,
+                    tax_code: c.tax_code,
+                    customer_name: c.customer_name
+                }));
+            } else {
+                selectedCustomers = Array.from(document.querySelectorAll('#customerFilterContainer input[type="checkbox"]:not(#selectAllCustomers):checked'))
+                    .map(cb => ({
+                        key: cb.value,
+                        tax_code: cb.dataset.taxCode,
+                        customer_name: cb.dataset.customerName
+                    }));
+            }
+            
+            let selectedMonths = [];
+            if (selectAllMonthsChecked) {
+                selectedMonths = allMonths;
+            } else {
+                selectedMonths = Array.from(document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:not(#selectAllMonths):checked'))
+                    .map(cb => cb.value);
+            }
+            
+            const monthsToShow = selectedMonths.length > 0 ? selectedMonths : allMonths;
+            
+            const dataMap = {};
+            result.data.forEach(d => {
+                const key = `${d.customer_key}_${d.month_year}`;
+                dataMap[key] = d;
+            });
+            
+            const datasets = [];
+            const colors = [
+                { bar: 'rgba(102, 126, 234, 0.8)', line: 'rgba(102, 126, 234, 1)' },
+                { bar: 'rgba(240, 147, 251, 0.8)', line: 'rgba(240, 147, 251, 1)' },
+                { bar: 'rgba(76, 175, 80, 0.8)', line: 'rgba(76, 175, 80, 1)' },
+                { bar: 'rgba(255, 152, 0, 0.8)', line: 'rgba(255, 152, 0, 1)' },
+                { bar: 'rgba(33, 150, 243, 0.8)', line: 'rgba(33, 150, 243, 1)' },
+                { bar: 'rgba(156, 39, 176, 0.8)', line: 'rgba(156, 39, 176, 1)' }
+            ];
+            
+            selectedCustomers.forEach((customer, idx) => {
+                const containerData = monthsToShow.map(month => {
+                    const key = `${customer.key}_${month}`;
+                    return dataMap[key] ? dataMap[key].total_containers : 0;
+                });
+                
+                const color = colors[idx % colors.length];
+                
+                datasets.push({
+                    label: `${customer.customer_name} (${customer.tax_code})`,
+                    data: containerData,
+                    type: 'bar',
+                    backgroundColor: color.bar,
+                    borderColor: color.line,
+                    borderWidth: 1,
+                    yAxisID: 'y',
+                    customer_key: customer.key,
+                    tax_code: customer.tax_code,
+                    customer_name: customer.customer_name
+                });
+            });
+            
+            if (containerChart) {
+                containerChart.destroy();
+            }
+            
+            const canvas = document.getElementById('containerChart');
+            // Giữ kích thước cố định dựa trên số tháng tối đa có thể có
+            const maxMonths = allMonths.length > 0 ? allMonths.length : monthsToShow.length;
+            canvas.width = Math.max(maxMonths * 80, 1200); // Tối thiểu 1200px để đảm bảo biểu đồ không quá nhỏ
+            canvas.height = 700;
+            
+            containerChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthsToShow,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    devicePixelRatio: 1,
+                    layout: {
+                        padding: {
+                            right: 20,
+                            left: 50,
+                            top: 20,
+                            bottom: 50
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                // Với mode: 'nearest', chỉ dataset gần nhất được hover
+                                return true;
+                            },
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const dataset = context.dataset;
+                                    const dataIndex = context.dataIndex;
+                                    const value = dataset.data[dataIndex] || 0;
+                                    
+                                    return `Tổng số container: ${formatNumber(value)}`;
+                                },
+                                afterBody: function(context) {
+                                    // Hiển thị tên khách hàng và mã số thuế
+                                    if (context.length > 0) {
+                                        const dataset = context[0].dataset;
+                                        if (dataset.customer_name) {
+                                            return [`${dataset.customer_name} (${dataset.tax_code})`];
+                                        }
+                                    }
+                                    return [];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Thêm event listeners cho tương tác đồng bộ
+            addChartInteractionListeners(containerChart, 'containerChart');
+            
+            if (selectedCustomers && colors) {
+                updateContainerChartLegend(selectedCustomers, colors);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading customer monthly container:', error);
+    }
+}
+
+async function loadCustomerContainerUsage() {
+    try {
+        const params = getFilterParams();
+        const response = await fetch(`/api/dashboard/monthly-container-usage?${params}`);
+        const result = await response.json();
+        
+        if (!allMonths.length) {
+            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsData = await monthsRes.json();
+            if (monthsData.success) {
+                allMonths = monthsData.data;
+            }
+        }
+        
+        if (result.success) {
+            const ctx = document.getElementById('containerUsageChart').getContext('2d');
+            
+            const selectAllMonthsChecked = document.getElementById('selectAllMonths').checked;
+            let selectedMonths = [];
+            if (selectAllMonthsChecked) {
+                selectedMonths = allMonths;
+            } else {
+                selectedMonths = Array.from(document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:not(#selectAllMonths):checked'))
+                    .map(cb => cb.value);
+            }
+            
+            const monthsToShow = selectedMonths.length > 0 ? selectedMonths : allMonths;
+            
+            // Tạo dataMap: key = "month_year_container_size", value = total_count
+            const dataMap = {};
+            result.data.forEach(d => {
+                const key = `${d.month_year}_${d.container_size}`;
+                dataMap[key] = d.total_count;
+            });
+            
+            // Lấy danh sách tất cả các kích cỡ container
+            const containerSizes = [...new Set(result.data.map(d => d.container_size))].sort((a, b) => a - b);
+            
+            // Tạo datasets cho mỗi kích cỡ container
+            const datasets = [];
+            const colors = [
+                { bar: 'rgba(102, 126, 234, 0.8)', line: 'rgba(102, 126, 234, 1)' },
+                { bar: 'rgba(240, 147, 251, 0.8)', line: 'rgba(240, 147, 251, 1)' },
+                { bar: 'rgba(76, 175, 80, 0.8)', line: 'rgba(76, 175, 80, 1)' },
+                { bar: 'rgba(255, 152, 0, 0.8)', line: 'rgba(255, 152, 0, 1)' },
+                { bar: 'rgba(33, 150, 243, 0.8)', line: 'rgba(33, 150, 243, 1)' },
+                { bar: 'rgba(156, 39, 176, 0.8)', line: 'rgba(156, 39, 176, 1)' }
+            ];
+            
+            containerSizes.forEach((size, idx) => {
+                const containerData = monthsToShow.map(month => {
+                    const key = `${month}_${size}`;
+                    return dataMap[key] || 0;
+                });
+                
+                const color = colors[idx % colors.length];
+                
+                datasets.push({
+                    label: `Container ${size}`,
+                    data: containerData,
+                    type: 'bar',
+                    backgroundColor: color.bar,
+                    borderColor: color.line,
+                    borderWidth: 1,
+                    container_size: size
+                });
+            });
+            
+            if (containerUsageChart) {
+                containerUsageChart.destroy();
+            }
+            
+            const canvas = document.getElementById('containerUsageChart');
+            const maxMonths = allMonths.length > 0 ? allMonths.length : monthsToShow.length;
+            canvas.width = Math.max(maxMonths * 80, 1200);
+            canvas.height = 700;
+            
+            containerUsageChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthsToShow,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    devicePixelRatio: 1,
+                    layout: {
+                        padding: {
+                            right: 20,
+                            left: 50,
+                            top: 20,
+                            bottom: 50
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                return true;
+                            },
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const dataset = context.dataset;
+                                    const value = dataset.data[context.dataIndex] || 0;
+                                    return `${dataset.label}: ${formatNumber(value)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Thêm event listeners cho tương tác đồng bộ
+            addChartInteractionListeners(containerUsageChart, 'containerUsageChart');
+            
+            // Update legend
+            const legendContainer = document.getElementById('containerUsageChartLegend');
+            legendContainer.innerHTML = '';
+            
+            containerSizes.forEach((size, idx) => {
+                const color = colors[idx % colors.length];
+                const legendItem = document.createElement('div');
+                legendItem.className = 'chart-legend-item';
+                legendItem.innerHTML = `
+                    <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
+                    <div class="chart-legend-text">Container ${size}</div>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading monthly container usage:', error);
+    }
+}
+
+async function loadContainerTypeUsage() {
+    try {
+        const params = getFilterParams();
+        const response = await fetch(`/api/dashboard/monthly-container-type-usage?${params}`);
+        const result = await response.json();
+        
+        if (!allMonths.length) {
+            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsData = await monthsRes.json();
+            if (monthsData.success) {
+                allMonths = monthsData.data;
+            }
+        }
+        
+        if (result.success) {
+            const ctx = document.getElementById('containerTypeChart').getContext('2d');
+            
+            const selectAllMonthsChecked = document.getElementById('selectAllMonths').checked;
+            let selectedMonths = [];
+            if (selectAllMonthsChecked) {
+                selectedMonths = allMonths;
+            } else {
+                selectedMonths = Array.from(document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:not(#selectAllMonths):checked'))
+                    .map(cb => cb.value);
+            }
+            
+            const monthsToShow = selectedMonths.length > 0 ? selectedMonths : allMonths;
+            
+            // Tạo dataMap: key = "month_year_container_type", value = total_count
+            const dataMap = {};
+            result.data.forEach(d => {
+                const key = `${d.month_year}_${d.container_type}`;
+                dataMap[key] = d.total_count;
+            });
+            
+            // Lấy danh sách tất cả các loại container
+            const containerTypes = [...new Set(result.data.map(d => d.container_type))].sort();
+            
+            // Function to format container type
+            function formatContainerType(type) {
+                if (type === 'GP') return 'thường';
+                if (type === 'HC') return 'lạnh';
+                return type;
+            }
+            
+            // Tạo datasets cho mỗi loại container
+            const datasets = [];
+            const colors = [
+                { bar: 'rgba(102, 126, 234, 0.8)', line: 'rgba(102, 126, 234, 1)' },
+                { bar: 'rgba(240, 147, 251, 0.8)', line: 'rgba(240, 147, 251, 1)' },
+                { bar: 'rgba(76, 175, 80, 0.8)', line: 'rgba(76, 175, 80, 1)' },
+                { bar: 'rgba(255, 152, 0, 0.8)', line: 'rgba(255, 152, 0, 1)' },
+                { bar: 'rgba(33, 150, 243, 0.8)', line: 'rgba(33, 150, 243, 1)' },
+                { bar: 'rgba(156, 39, 176, 0.8)', line: 'rgba(156, 39, 176, 1)' }
+            ];
+            
+            containerTypes.forEach((type, idx) => {
+                const containerData = monthsToShow.map(month => {
+                    const key = `${month}_${type}`;
+                    return dataMap[key] || 0;
+                });
+                
+                const color = colors[idx % colors.length];
+                const formattedType = formatContainerType(type);
+                
+                datasets.push({
+                    label: `Container ${formattedType}`,
+                    data: containerData,
+                    type: 'bar',
+                    backgroundColor: color.bar,
+                    borderColor: color.line,
+                    borderWidth: 1,
+                    container_type: type
+                });
+            });
+            
+            if (containerTypeChart) {
+                containerTypeChart.destroy();
+            }
+            
+            const canvas = document.getElementById('containerTypeChart');
+            const maxMonths = allMonths.length > 0 ? allMonths.length : monthsToShow.length;
+            canvas.width = Math.max(maxMonths * 80, 1200);
+            canvas.height = 700;
+            
+            containerTypeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthsToShow,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    devicePixelRatio: 1,
+                    layout: {
+                        padding: {
+                            right: 20,
+                            left: 50,
+                            top: 20,
+                            bottom: 50
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                return true;
+                            },
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const dataset = context.dataset;
+                                    const value = dataset.data[context.dataIndex] || 0;
+                                    return `${dataset.label}: ${formatNumber(value)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Thêm event listeners cho tương tác đồng bộ
+            addChartInteractionListeners(containerTypeChart, 'containerTypeChart');
+            
+            // Update legend
+            const legendContainer = document.getElementById('containerTypeChartLegend');
+            legendContainer.innerHTML = '';
+            
+            containerTypes.forEach((type, idx) => {
+                const color = colors[idx % colors.length];
+                const formattedType = formatContainerType(type);
+                const legendItem = document.createElement('div');
+                legendItem.className = 'chart-legend-item';
+                legendItem.innerHTML = `
+                    <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
+                    <div class="chart-legend-text">Container ${formattedType}</div>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading monthly container type usage:', error);
+    }
+}
+
+async function loadCustomersByProvince() {
+    try {
+        const params = getFilterParams();
+        const response = await fetch(`/api/dashboard/customers-by-province?${params}`);
+        const result = await response.json();
+        if (result.success && result.data.length > 0) {
+            const ctx = document.getElementById('customersByProvinceChart').getContext('2d');
+            const labels = result.data.map(d => d.province);
+            const data = result.data.map(d => d.customer_count);
+            
+            if (customersByProvinceChart) {
+                customersByProvinceChart.destroy();
+            }
+            
+            customersByProvinceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Số lượng Khách hàng',
+                        data: data,
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading customers by province:', error);
+    }
+}
+
+async function loadRevenueByProvince() {
+    try {
+        const params = getFilterParams();
+        const response = await fetch(`/api/dashboard/revenue-by-province?${params}`);
+        const result = await response.json();
+        if (result.success) {
+            if (result.data.length > 0) {
+                const ctx = document.getElementById('revenueByProvinceChart').getContext('2d');
+                const labels = result.data.map(d => d.province);
+                const data = result.data.map(d => d.total_revenue);
+                
+                if (revenueByProvinceChart) {
+                    revenueByProvinceChart.destroy();
+                }
+                
+                revenueByProvinceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Tổng Doanh thu',
+                            data: data,
+                            backgroundColor: 'rgba(240, 147, 251, 0.8)',
+                            borderColor: 'rgba(240, 147, 251, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return formatCurrency(context.parsed.y);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading revenue by province:', error);
+    }
+}
+
+let isUpdating = false;
+
+const dashboardChannel = new BroadcastChannel('dashboard-updates');
+
+dashboardChannel.onmessage = function(event) {
+    if (event.data.type === 'data-updated') {
+        console.log('Data updated detected, reloading dashboard...');
+        loadAllData();
+    }
+};
+
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.custom-dropdown')) {
+        document.querySelectorAll('.custom-dropdown .dropdown-toggle').forEach(t => {
+            t.classList.remove('active');
+        });
+        document.querySelectorAll('.dropdown-menu').forEach(m => {
+            m.classList.remove('show');
+        });
+    }
+});
+
+async function loadAllData() {
+    if (isUpdating) return;
+    isUpdating = true;
+    
+    try {
+        await Promise.all([
+            loadTotalCustomers(),
+            loadCustomerMonthlyRevenue(),
+            loadCustomerMonthlyContainer(),
+            loadCustomerContainerUsage(),
+            loadContainerTypeUsage(),
+            loadCustomersByProvince(),
+            loadRevenueByProvince()
+        ]);
+    } finally {
+        isUpdating = false;
+    }
+}
+
+loadFilters().then(() => {
+    loadAllData();
+});
+</script>
+{% endblock %}
+

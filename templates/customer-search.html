@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Tra cứu thông tin khách hàng - Application{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer-search.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="search-header">
+        <h1>Tra cứu thông tin khách hàng</h1>
+        <p class="search-subtitle">Nhập mã số thuế để tra cứu thông tin khách hàng</p>
+    </div>
+
+    <div class="search-content">
+        <div class="search-form-section">
+            <div class="search-box">
+                <label for="taxCodeInput" class="input-label">Mã số thuế</label>
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="taxCodeInput" 
+                        class="tax-code-input" 
+                        placeholder="Nhập mã số thuế (tối đa 11 chữ số)"
+                        maxlength="11"
+                    >
+                    <button id="searchBtn" class="search-button">
+                        <span class="search-icon">🔍</span> Tra cứu
+                    </button>
+                </div>
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div id="resultSection" class="result-section" style="display: none;">
+            <div class="result-card">
+                <h2 class="result-title">Thông tin khách hàng</h2>
+                <div class="result-content">
+                    <div class="info-row">
+                        <span class="info-label">Tên doanh nghiệp:</span>
+                        <span class="info-value" id="customerName">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Địa chỉ:</span>
+                        <span class="info-value" id="customerAddress">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Tỉnh thành sau sáp nhập:</span>
+                        <span class="info-value" id="newProvince">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result-card" id="revenueCard" style="display: none;">
+                <h2 class="result-title">Tổng doanh thu và số lượng container theo tháng</h2>
+                <div class="revenue-table-container">
+                    <table class="revenue-table" id="revenueTable">
+                        <thead>
+                            <tr id="revenueTableHeader"></tr>
+                        </thead>
+                        <tbody>
+                            <tr id="revenueTableBody"></tr>
+                            <tr id="containerTableBody"></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const taxCodeInput = document.getElementById('taxCodeInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    const resultSection = document.getElementById('resultSection');
+
+    taxCodeInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        e.target.value = value;
+        
+        if (value.length > 11) {
+            value = value.substring(0, 11);
+            e.target.value = value;
+        }
+        
+        hideError();
+        hideResult();
+    });
+
+    taxCodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+
+    searchBtn.addEventListener('click', performSearch);
+
+    function validateTaxCode(taxCode) {
+        if (!taxCode || taxCode.trim() === '') {
+            showError('Vui lòng nhập mã số thuế');
+            return false;
+        }
+        
+        if (!/^\d+$/.test(taxCode)) {
+            showError('Mã số thuế phải là toàn các chữ số');
+            return false;
+        }
+        
+        if (taxCode.length > 11) {
+            showError('Mã số thuế không được vượt quá 11 ký tự');
+            return false;
+        }
+        
+        return true;
+    }
+
+    function performSearch() {
+        const taxCode = taxCodeInput.value.trim();
+        
+        hideError();
+        hideResult();
+        
+        if (!validateTaxCode(taxCode)) {
+            return;
+        }
+        
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<span class="search-icon">⏳</span> Đang tìm kiếm...';
+        
+        fetch('{{ url_for("search_customer") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tax_code: taxCode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayResult(data.data);
+            } else {
+                showError(data.error || 'Không tìm thấy thông tin khách hàng');
+            }
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = '<span class="search-icon">🔍</span> Tra cứu';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Có lỗi xảy ra khi tra cứu. Vui lòng thử lại.');
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = '<span class="search-icon">🔍</span> Tra cứu';
+        });
+    }
+
+    function displayResult(data) {
+        document.getElementById('customerName').textContent = data.customer_name || '-';
+        document.getElementById('customerAddress').textContent = data.address || '-';
+        document.getElementById('newProvince').textContent = data.new_province || '-';
+        
+        if (data.monthly_revenue) {
+            displayRevenueTable(data.monthly_revenue);
+        }
+        
+        resultSection.style.display = 'block';
+        resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    function displayRevenueTable(monthlyData) {
+        const revenueCard = document.getElementById('revenueCard');
+        const tableHeader = document.getElementById('revenueTableHeader');
+        const revenueTableBody = document.getElementById('revenueTableBody');
+        const containerTableBody = document.getElementById('containerTableBody');
+        
+        if (!monthlyData || (!monthlyData.revenue && !monthlyData.container_count)) {
+            revenueCard.style.display = 'none';
+            return;
+        }
+        
+        const monthlyRevenue = monthlyData.revenue || {};
+        const containerCount = monthlyData.container_count || {};
+        
+        const allMonths = new Set([...Object.keys(monthlyRevenue), ...Object.keys(containerCount)]);
+        const months = Array.from(allMonths).sort((a, b) => {
+            const [monthA, yearA] = a.split('/').map(Number);
+            const [monthB, yearB] = b.split('/').map(Number);
+            if (yearA !== yearB) return yearA - yearB;
+            return monthA - monthB;
+        });
+        
+        if (months.length === 0) {
+            revenueCard.style.display = 'none';
+            return;
+        }
+        
+        tableHeader.innerHTML = '<th>Tháng</th>';
+        revenueTableBody.innerHTML = '<td><strong>Doanh thu</strong></td>';
+        containerTableBody.innerHTML = '<td><strong>Số lượng container</strong></td>';
+        
+        months.forEach(month => {
+            const headerCell = document.createElement('th');
+            headerCell.textContent = month;
+            tableHeader.appendChild(headerCell);
+            
+            const revenueCell = document.createElement('td');
+            const amount = monthlyRevenue[month] || 0;
+            revenueCell.textContent = formatNumber(amount);
+            revenueTableBody.appendChild(revenueCell);
+            
+            const containerCell = document.createElement('td');
+            const count = containerCount[month] || 0;
+            containerCell.textContent = formatNumber(count);
+            containerTableBody.appendChild(containerCell);
+        });
+        
+        revenueCard.style.display = 'block';
+    }
+    
+    function formatNumber(num) {
+        return new Intl.NumberFormat('vi-VN').format(num);
+    }
+
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+    }
+
+    function hideError() {
+        errorMessage.style.display = 'none';
+    }
+
+    function hideResult() {
+        resultSection.style.display = 'none';
+    }
+</script>
+{% endblock %}
+

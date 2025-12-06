@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng ký - BaiTapNhom{% endblock %}
+
+{% block extra_js %}
+<script>
+function handlePhoneChange(e) {
+    let value = e.target.value;
+    
+    // Cho phép dấu + ở đầu, sau đó chỉ cho phép số
+    if (value.startsWith('+')) {
+        const numbersAfterPlus = value.substring(1).replace(/\D/g, '');
+        value = '+' + numbersAfterPlus;
+        
+        // Nếu bắt đầu bằng +84, chuyển thành 0
+        if (value.startsWith('+84')) {
+            value = '0' + value.substring(3);
+        }
+    } else {
+        value = value.replace(/\D/g, '');
+    }
+    
+    e.target.value = value;
+}
+
+function checkPasswordMatch() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const messageDiv = document.getElementById('passwordMatchMessage');
+    const confirmInput = document.getElementById('confirmPassword');
+    
+    // Chỉ kiểm tra khi cả 2 trường đều có giá trị
+    if (password && confirmPassword) {
+        if (password === confirmPassword) {
+            messageDiv.textContent = '✓ Mật khẩu khớp';
+            messageDiv.className = 'password-match-message password-match-success';
+            messageDiv.style.display = 'block';
+            confirmInput.style.borderColor = '#28a745';
+        } else {
+            messageDiv.textContent = '✗ Mật khẩu không khớp';
+            messageDiv.className = 'password-match-message password-match-error';
+            messageDiv.style.display = 'block';
+            confirmInput.style.borderColor = '#dc3545';
+        }
+    } else {
+        messageDiv.style.display = 'none';
+        confirmInput.style.borderColor = '#e0e0e0';
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Đăng ký</h2>
+        {% if is_first_user %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+            <p style="margin: 0; color: #856404; font-weight: 500;">
+                ⚠️ Lần đầu đăng ký: Vui lòng tạo tài khoản ADMIN để quản lý hệ thống.
+            </p>
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="form-group">
+                <label for="username">Tên đăng nhập</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    required
+                    placeholder="Nhập tên đăng nhập"
+                    autocomplete="username"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    placeholder="Nhập email"
+                    autocomplete="email"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="phone_number">Số điện thoại</label>
+                <input
+                    type="tel"
+                    id="phone_number"
+                    name="phone_number"
+                    required
+                    placeholder="Nhập số điện thoại (VD: +84901234567 hoặc 0901234567)"
+                    oninput="handlePhoneChange(event)"
+                />
+                <div class="phone-hint">
+                    Số điện thoại phải có 10 số. Nếu nhập +84 sẽ tự động chuyển thành 0
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="first_name">Họ</label>
+                <input
+                    type="text"
+                    id="first_name"
+                    name="first_name"
+                    required
+                    placeholder="Nhập họ"
+                    autocomplete="given-name"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="middle_name">Tên đệm</label>
+                <input
+                    type="text"
+                    id="middle_name"
+                    name="middle_name"
+                    placeholder="Nhập tên đệm (tùy chọn)"
+                    autocomplete="additional-name"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="last_name">Tên</label>
+                <input
+                    type="text"
+                    id="last_name"
+                    name="last_name"
+                    required
+                    placeholder="Nhập tên"
+                    autocomplete="family-name"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="department_key">Phòng ban</label>
+                <select id="department_key" name="department_key">
+                    <option value="">-- Chọn phòng ban (tùy chọn) --</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.department_key }}">{{ dept.department }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="role">Vai trò</label>
+                {% if is_first_user %}
+                <div class="role-display-container">
+                    <div class="role-badge-admin">
+                        <span class="role-icon">👑</span>
+                        <span class="role-text">ADMIN</span>
+                    </div>
+                    <p class="role-note">Vai trò mặc định cho tài khoản đầu tiên</p>
+                </div>
+                <input type="hidden" name="role" value="ADMIN">
+                {% else %}
+                <select id="role" name="role" required>
+                    <option value="">-- Chọn vai trò --</option>
+                    {% for role in roles %}
+                    <option value="{{ role.role_name }}">{{ role.role_name }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Mật khẩu</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    placeholder="Nhập mật khẩu (8 ký tự tối thiểu, có số, chữ hoa, chữ thường, ký tự đặc biệt)"
+                    autocomplete="new-password"
+                    oninput="checkPasswordMatch()"
+                />
+                <div class="password-hint">
+                    Mật khẩu phải có ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Xác nhận mật khẩu</label>
+                <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    required
+                    placeholder="Nhập lại mật khẩu"
+                    autocomplete="new-password"
+                    oninput="checkPasswordMatch()"
+                />
+                <div id="passwordMatchMessage" class="password-match-message" style="display: none;"></div>
+            </div>
+
+            <button type="submit" class="submit-btn">Đăng ký</button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Đã có tài khoản? <a href="{{ url_for('login') }}">Đăng nhập ngay</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

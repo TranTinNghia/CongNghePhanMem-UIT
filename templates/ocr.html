@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+
+{% block title %}Quét OCR - Application{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ocr.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ocr-container">
+    <div class="ocr-header">
+        <h1>Quét OCR</h1>
+        <p class="ocr-subtitle">Tải lên file PDF để trích xuất thông tin</p>
+        <div class="scan-mode-selector">
+            <label class="mode-option">
+                <input type="radio" name="scanMode" value="single" checked onchange="switchScanMode('single')">
+                <span>Quét 1 file</span>
+            </label>
+            <label class="mode-option">
+                <input type="radio" name="scanMode" value="multiple" onchange="switchScanMode('multiple')">
+                <span>Quét nhiều file</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="ocr-content">
+        <div class="ocr-left">
+            <div class="upload-section">
+                <div class="upload-box" id="uploadBox">
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                    <input type="file" id="fileInputMultiple" accept=".pdf" multiple style="display: none;">
+                    <div class="upload-icon">📄</div>
+                    <p class="upload-text" id="uploadText">Kéo thả file PDF vào đây</p>
+                    <p class="upload-subtext">hoặc</p>
+                    <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()">Chọn file từ máy tính</button>
+                    <p class="file-name" id="fileName"></p>
+                    <div id="fileList" class="file-list" style="display: none;"></div>
+                </div>
+                
+                <div class="format-notice">
+                    <div class="notice-icon">ℹ️</div>
+                    <div class="notice-content">
+                        <strong>Lưu ý về định dạng file:</strong>
+                        <p>File PDF phải có định dạng giống như Giấy biên nhận thanh toán dưới đây mới thực hiện được.</p>
+                    </div>
+                </div>
+
+                <div class="sample-image-section">
+                    <h3 class="sample-title">Hình ảnh mẫu giấy biên nhận:</h3>
+                    <div class="sample-image-container">
+                        <img src="{{ url_for('static', filename='images/receipt-sample.png') }}" alt="Mẫu giấy biên nhận" class="sample-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="sample-placeholder" style="display: none;">
+                            <p>Hình ảnh mẫu sẽ được hiển thị tại đây</p>
+                            <p class="placeholder-note">Đặt file receipt-sample.png vào thư mục static/images/</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="scan-btn" id="scanBtn" onclick="processOCR()" disabled>
+                    <span class="scan-icon">🔍</span>
+                    Quét OCR
+                </button>
+            </div>
+        </div>
+
+        <div class="ocr-right">
+            <div class="info-section">
+                <h2>Thông tin trích xuất</h2>
+                <div id="singleModeInfo" class="info-grid">
+                    <div class="info-item">
+                        <label>Mã lô hàng:</label>
+                        <div class="info-value" id="lotCode">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Mã giao dịch:</label>
+                        <div class="info-value" id="transactionCode">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Ngày biên nhận:</label>
+                        <div class="info-value" id="receiptDate">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Số hóa đơn:</label>
+                        <div class="info-value" id="invoiceNumber">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Mã số thuế Khách hàng:</label>
+                        <div class="info-value" id="taxCode">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Tên Khách hàng:</label>
+                        <div class="info-value" id="customerName">-</div>
+                    </div>
+                    <div class="info-item full-width">
+                        <label>Địa chỉ Khách hàng:</label>
+                        <div class="info-value" id="customerAddress">-</div>
+                    </div>
+                </div>
+                <div id="multipleModeInfo" class="info-table-container" style="display: none;">
+                    <table class="info-table">
+                        <thead>
+                            <tr>
+                                <th>Mã lô hàng</th>
+                                <th>Mã giao dịch</th>
+                                <th>Ngày biên nhận</th>
+                                <th>Số hóa đơn</th>
+                                <th>Mã số thuế</th>
+                                <th>Tên Khách hàng</th>
+                                <th>Địa chỉ Khách hàng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="infoTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-section" id="tableSection" style="display: none;">
+        <h2>Chi tiết Container</h2>
+        <div class="table-container">
+            <table class="ocr-table">
+                <thead>
+                    <tr>
+                        <th>Số Container</th>
+                        <th>Phương án</th>
+                        <th>Số lượng</th>
+                        <th>Đơn giá</th>
+                        <th>Thuế (%)</th>
+                        <th>Giảm giá</th>
+                        <th>Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFile = null;
+let selectedFiles = [];
+let scanMode = 'single';
+
+let singleModeResults = null;
+let multipleModeResults = null;
+
+function switchScanMode(mode) {
+    if (scanMode === 'single' && singleModeResults) {
+    } else if (scanMode === 'multiple' && multipleModeResults) {
+    }
+    
+    scanMode = mode;
+    
+    if (mode === 'single') {
+        document.getElementById('uploadText').textContent = 'Kéo thả file PDF vào đây';
+        document.getElementById('uploadBtn').onclick = function() { document.getElementById('fileInput').click(); };
+        document.getElementById('singleModeInfo').style.display = 'grid';
+        document.getElementById('multipleModeInfo').style.display = 'none';
+        
+        if (singleModeResults) {
+            restoreSingleResults(singleModeResults);
+        } else {
+            document.getElementById('lotCode').textContent = '-';
+            document.getElementById('transactionCode').textContent = '-';
+            document.getElementById('receiptDate').textContent = '-';
+            document.getElementById('invoiceNumber').textContent = '-';
+            document.getElementById('taxCode').textContent = '-';
+            document.getElementById('customerName').textContent = '-';
+            document.getElementById('customerAddress').textContent = '-';
+            document.getElementById('tableBody').innerHTML = '';
+            document.getElementById('tableSection').style.display = 'none';
+        }
+        
+        if (selectedFile) {
+            document.getElementById('fileName').textContent = selectedFile.name;
+            document.getElementById('scanBtn').disabled = false;
+            document.getElementById('uploadBox').classList.add('file-selected');
+        } else {
+            document.getElementById('fileName').textContent = '';
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('uploadBox').classList.remove('file-selected');
+        }
+    } else {
+        document.getElementById('uploadText').textContent = 'Kéo thả nhiều file PDF vào đây';
+        document.getElementById('uploadBtn').onclick = function() { document.getElementById('fileInputMultiple').click(); };
+        document.getElementById('singleModeInfo').style.display = 'none';
+        document.getElementById('multipleModeInfo').style.display = 'block';
+        
+        if (multipleModeResults) {
+            restoreMultipleResults(multipleModeResults);
+        } else {
+            document.getElementById('infoTableBody').innerHTML = '';
+            document.getElementById('tableBody').innerHTML = '';
+            document.getElementById('tableSection').style.display = 'none';
+        }
+        
+        if (selectedFiles && selectedFiles.length > 0) {
+            updateFileList();
+            document.getElementById('scanBtn').disabled = false;
+            document.getElementById('uploadBox').classList.add('file-selected');
+        } else {
+            document.getElementById('fileList').innerHTML = '';
+            document.getElementById('fileList').style.display = 'none';
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('uploadBox').classList.remove('file-selected');
+        }
+    }
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.type !== 'application/pdf') {
+            alert('Vui lòng chọn file PDF!');
+            return;
+        }
+        selectedFile = file;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('scanBtn').disabled = false;
+        document.getElementById('uploadBox').classList.add('file-selected');
+    }
+});
+
+document.getElementById('fileInputMultiple').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    const pdfFiles = files.filter(file => file.type === 'application/pdf');
+    
+    if (pdfFiles.length === 0) {
+        alert('Vui lòng chọn ít nhất một file PDF!');
+        return;
+    }
+    
+    selectedFiles = pdfFiles;
+    updateFileList();
+    document.getElementById('scanBtn').disabled = false;
+    document.getElementById('uploadBox').classList.add('file-selected');
+});
+
+function updateFileList() {
+    const fileListDiv = document.getElementById('fileList');
+    fileListDiv.innerHTML = '<strong>Đã chọn ' + selectedFiles.length + ' file:</strong><ul>';
+    selectedFiles.forEach((file, index) => {
+        fileListDiv.innerHTML += '<li>' + file.name + '</li>';
+    });
+    fileListDiv.innerHTML += '</ul>';
+    fileListDiv.style.display = 'block';
+}
+
+const uploadBox = document.getElementById('uploadBox');
+uploadBox.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    uploadBox.classList.add('drag-over');
+});
+
+uploadBox.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    uploadBox.classList.remove('drag-over');
+});
+
+uploadBox.addEventListener('drop', function(e) {
+    e.preventDefault();
+    uploadBox.classList.remove('drag-over');
+    
+    if (scanMode === 'single') {
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+            selectedFile = file;
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            document.getElementById('fileInput').files = dataTransfer.files;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('scanBtn').disabled = false;
+            uploadBox.classList.add('file-selected');
+        } else {
+            alert('Vui lòng chọn file PDF!');
+        }
+    } else {
+        const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
+        if (files.length === 0) {
+            alert('Vui lòng chọn ít nhất một file PDF!');
+            return;
+        }
+        selectedFiles = files;
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => dataTransfer.items.add(file));
+        document.getElementById('fileInputMultiple').files = dataTransfer.files;
+        updateFileList();
+        document.getElementById('scanBtn').disabled = false;
+        uploadBox.classList.add('file-selected');
+    }
+});
+
+function processOCR() {
+    const scanBtn = document.getElementById('scanBtn');
+    
+    if (scanMode === 'single') {
+        if (!selectedFile) {
+            alert('Vui lòng chọn file PDF!');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        scanBtn.disabled = true;
+        scanBtn.innerHTML = '<span class="scan-icon">⏳</span> Đang quét...';
+
+        fetch('{{ url_for("ocr_process") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayResults(data.data);
+                if (data.stats) {
+                    const statsChannel = new BroadcastChannel('dashboard_stats');
+                    statsChannel.postMessage({
+                        type: 'stats_update',
+                        stats: data.stats
+                    });
+                    statsChannel.close();
+                }
+                const dashboardChannel = new BroadcastChannel('dashboard-updates');
+                dashboardChannel.postMessage({ type: 'data-updated' });
+                dashboardChannel.close();
+            } else {
+                alert('Lỗi: ' + (data.error || 'Không thể quét file'));
+            }
+            scanBtn.disabled = false;
+            scanBtn.innerHTML = '<span class="scan-icon">🔍</span> Quét OCR';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Có lỗi xảy ra khi quét file');
+            scanBtn.disabled = false;
+            scanBtn.innerHTML = '<span class="scan-icon">🔍</span> Quét OCR';
+        });
+    } else {
+        if (selectedFiles.length === 0) {
+            alert('Vui lòng chọn ít nhất một file PDF!');
+            return;
+        }
+
+        const formData = new FormData();
+        selectedFiles.forEach(file => {
+            formData.append('files', file);
+        });
+
+        scanBtn.disabled = true;
+        scanBtn.innerHTML = '<span class="scan-icon">⏳</span> Đang quét...';
+
+        fetch('{{ url_for("ocr_process_multiple") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayMultipleResults(data.data);
+                if (data.stats) {
+                    const statsChannel = new BroadcastChannel('dashboard_stats');
+                    statsChannel.postMessage({
+                        type: 'stats_update',
+                        stats: data.stats
+                    });
+                    statsChannel.close();
+                }
+                const dashboardChannel = new BroadcastChannel('dashboard-updates');
+                dashboardChannel.postMessage({ type: 'data-updated' });
+                dashboardChannel.close();
+            } else {
+                alert('Lỗi: ' + (data.error || 'Không thể quét file'));
+            }
+            scanBtn.disabled = false;
+            scanBtn.innerHTML = '<span class="scan-icon">🔍</span> Quét OCR';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Có lỗi xảy ra khi quét file');
+            scanBtn.disabled = false;
+            scanBtn.innerHTML = '<span class="scan-icon">🔍</span> Quét OCR';
+        });
+    }
+}
+
+function displayResults(data) {
+    singleModeResults = data;
+    
+    document.getElementById('lotCode').textContent = data.lot_code || '-';
+    document.getElementById('transactionCode').textContent = data.transaction_code || '-';
+    document.getElementById('receiptDate').textContent = data.receipt_date || '-';
+    document.getElementById('invoiceNumber').textContent = data.invoice_number || '-';
+    document.getElementById('taxCode').textContent = data.tax_code || '-';
+    document.getElementById('customerName').textContent = data.customer_name || '-';
+    document.getElementById('customerAddress').textContent = data.customer_address || '-';
+
+    const tableBody = document.getElementById('tableBody');
+    tableBody.innerHTML = '';
+    
+    console.log('DEBUG: data.items =', data.items);
+    console.log('DEBUG: data.items length =', data.items ? data.items.length : 0);
+    
+    if (data.items && data.items.length > 0) {
+        console.log('Raw items data:', data.items);
+        data.items.forEach(item => {
+            console.log('Item:', item);
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.container_number || '-'}</td>
+                <td>${item.option || '-'}</td>
+                <td>${item.quantity || '-'}</td>
+                <td>${item.unit_price ? formatNumber(item.unit_price) : '-'}</td>
+                <td>${item.tax || '-'}</td>
+                <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
+                <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+        document.getElementById('tableSection').style.display = 'block';
+    } else {
+        console.log('No items found or items array is empty');
+        document.getElementById('tableSection').style.display = 'none';
+    }
+}
+
+function restoreSingleResults(data) {
+    document.getElementById('lotCode').textContent = data.lot_code || '-';
+    document.getElementById('transactionCode').textContent = data.transaction_code || '-';
+    document.getElementById('receiptDate').textContent = data.receipt_date || '-';
+    document.getElementById('invoiceNumber').textContent = data.invoice_number || '-';
+    document.getElementById('taxCode').textContent = data.tax_code || '-';
+    document.getElementById('customerName').textContent = data.customer_name || '-';
+    document.getElementById('customerAddress').textContent = data.customer_address || '-';
+
+    const tableBody = document.getElementById('tableBody');
+    tableBody.innerHTML = '';
+    
+    if (data.items && data.items.length > 0) {
+        data.items.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.container_number || '-'}</td>
+                <td>${item.option || '-'}</td>
+                <td>${item.quantity || '-'}</td>
+                <td>${item.unit_price ? formatNumber(item.unit_price) : '-'}</td>
+                <td>${item.tax || '-'}</td>
+                <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
+                <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+        document.getElementById('tableSection').style.display = 'block';
+    } else {
+        document.getElementById('tableSection').style.display = 'none';
+    }
+}
+
+function displayMultipleResults(results) {
+    multipleModeResults = results;
+    
+    const infoTableBody = document.getElementById('infoTableBody');
+    infoTableBody.innerHTML = '';
+    
+    const tableBody = document.getElementById('tableBody');
+    tableBody.innerHTML = '';
+    
+    results.forEach(result => {
+        const infoRow = document.createElement('tr');
+        infoRow.innerHTML = `
+            <td>${result.lot_code || '-'}</td>
+            <td>${result.transaction_code || '-'}</td>
+            <td>${result.receipt_date || '-'}</td>
+            <td>${result.invoice_number || '-'}</td>
+            <td>${result.tax_code || '-'}</td>
+            <td>${result.customer_name || '-'}</td>
+            <td>${result.customer_address || '-'}</td>
+        `;
+        infoTableBody.appendChild(infoRow);
+        
+        if (result.items && result.items.length > 0) {
+            console.log('Raw items data (multiple):', result.items);
+            result.items.forEach(item => {
+                console.log('Item (multiple):', item);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.container_number || '-'}</td>
+                    <td>${item.option || '-'}</td>
+                    <td>${item.quantity || '-'}</td>
+                    <td>${item.unit_price ? formatNumber(item.unit_price) : '-'}</td>
+                    <td>${item.tax || '-'}</td>
+                    <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
+                    <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+    });
+    
+    if (results.length > 0) {
+        document.getElementById('tableSection').style.display = 'block';
+    }
+}
+
+function restoreMultipleResults(results) {
+    const infoTableBody = document.getElementById('infoTableBody');
+    infoTableBody.innerHTML = '';
+    
+    const tableBody = document.getElementById('tableBody');
+    tableBody.innerHTML = '';
+    
+    results.forEach(result => {
+        const infoRow = document.createElement('tr');
+        infoRow.innerHTML = `
+            <td>${result.lot_code || '-'}</td>
+            <td>${result.transaction_code || '-'}</td>
+            <td>${result.receipt_date || '-'}</td>
+            <td>${result.invoice_number || '-'}</td>
+            <td>${result.tax_code || '-'}</td>
+            <td>${result.customer_name || '-'}</td>
+            <td>${result.customer_address || '-'}</td>
+        `;
+        infoTableBody.appendChild(infoRow);
+        
+        if (result.items && result.items.length > 0) {
+            result.items.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.container_number || '-'}</td>
+                    <td>${item.option || '-'}</td>
+                    <td>${item.quantity || '-'}</td>
+                    <td>${item.unit_price ? formatNumber(item.unit_price) : '-'}</td>
+                    <td>${item.tax || '-'}</td>
+                    <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
+                    <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+    });
+    
+    if (results.length > 0) {
+        document.getElementById('tableSection').style.display = 'block';
+    }
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('vi-VN').format(num);
+}
+</script>
+{% endblock %}
+

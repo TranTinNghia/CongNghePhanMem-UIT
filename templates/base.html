@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BaiTapNhom{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body data-logged-in="{% if session.user_id %}true{% else %}false{% endif %}">
+    {% if session.user_id %}
+    <div class="header">
+        <div class="header-left" onclick="goToHome()" style="cursor: pointer;">
+            <img src="{{ url_for('static', filename='images/uit-logo.png') }}" alt="UIT Logo" class="uit-logo" onerror="this.style.display='none'">
+            <div class="school-info">
+                <p class="group-name">Nhóm 9</p>
+                <p class="school-name">Trường Đại học Công nghệ Thông tin - Đại học Quốc gia Thành phố Hồ Chí Minh</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="user-menu-container">
+                <div class="user-menu-trigger" onclick="toggleUserMenu()">
+                    <div class="user-avatar-small">{{ session.username[0].upper() if session.username else 'U' }}</div>
+                    <span class="user-name-header">{{ session.username }}</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="user-menu-dropdown" id="userMenuDropdown">
+                    <div class="menu-user-info">
+                        {% set full_name = (session.first_name or '') + ' ' + (session.middle_name or '') + ' ' + (session.last_name or '') %}
+                        {% set full_name = full_name.strip() %}
+                        {% if full_name %}
+                        <div class="user-full-name">{{ full_name }}</div>
+                        {% endif %}
+                        <div class="menu-role-info">
+                            <span class="role-label">Vai trò:</span>
+                            <span class="role-value">{{ session.role or 'N/A' }}</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('account_settings') }}" class="menu-item">
+                        <span class="menu-icon">👤</span>
+                        <span>Thông tin tài khoản</span>
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="menu-item">
+                        <span class="menu-icon">🚪</span>
+                        <span>Đăng xuất</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    {% block content %}{% endblock %}
+    
+    <script>
+        const isLoggedIn = document.body.dataset.loggedIn === 'true';
+        const homeUrl = "{{ url_for('home') }}";
+        const loginUrl = "{{ url_for('login') }}";
+        
+        function toggleUserMenu() {
+            const dropdown = document.getElementById('userMenuDropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+        }
+        
+        function goToHome() {
+            if (isLoggedIn) {
+                window.location.href = homeUrl;
+            } else {
+                window.location.href = loginUrl;
+            }
+        }
+        
+        // Đóng dropdown khi click bên ngoài
+        window.onclick = function(event) {
+            if (!event.target.matches('.user-menu-trigger') && !event.target.closest('.user-menu-container')) {
+                const dropdown = document.getElementById('userMenuDropdown');
+                if (dropdown && dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            }
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

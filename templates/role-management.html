@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý vai trò - BaiTapNhom{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/role-management.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="role-management-container">
+    <div class="page-header">
+        <h1>Quản lý vai trò người dùng</h1>
+        <p class="page-description">Phân quyền và quản lý vai trò cho các tài khoản trong hệ thống</p>
+    </div>
+
+    <div class="users-table-container">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Tên đăng nhập</th>
+                    <th>Họ và tên</th>
+                    <th>Email</th>
+                    <th>Số điện thoại</th>
+                    <th>Vai trò hiện tại</th>
+                    <th>Phòng ban</th>
+                    <th>Thay đổi vai trò</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableBody">
+                {% for user in users %}
+                <tr data-username="{{ user.username }}">
+                    <td>{{ user.username }}</td>
+                    <td>
+                        <div class="name-inputs">
+                            <input type="text" class="name-input" data-field="first_name" data-username="{{ user.username }}" value="{{ user.first_name or '' }}" placeholder="Họ">
+                            <input type="text" class="name-input" data-field="middle_name" data-username="{{ user.username }}" value="{{ user.middle_name or '' }}" placeholder="Tên đệm">
+                            <input type="text" class="name-input" data-field="last_name" data-username="{{ user.username }}" value="{{ user.last_name or '' }}" placeholder="Tên">
+                        </div>
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.phone_number }}</td>
+                    <td>
+                        <span class="role-badge role-{{ user.role_name|lower }}">{{ user.role_name }}</span>
+                    </td>
+                    <td>
+                        <select class="department-select" data-username="{{ user.username }}">
+                            <option value="">-- Chọn phòng ban --</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.department_key }}" {% if user.department_key == dept.department_key %}selected{% endif %}>
+                                {{ dept.department }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="role-select" data-username="{{ user.username }}">
+                            <option value="">-- Chọn vai trò --</option>
+                            {% for role in roles %}
+                            <option value="{{ role.role_name }}" {% if user.role_key == role.role_key %}selected{% endif %}>
+                                {{ role.role_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <button class="btn-save" onclick="saveUserInfo('{{ user.username }}')" disabled>
+                            Lưu
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="messageContainer"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const originalValues = {};
+
+    document.querySelectorAll('tr[data-username]').forEach(row => {
+        const username = row.dataset.username;
+        const roleSelect = row.querySelector('.role-select');
+        const firstNameInput = row.querySelector('input[data-field="first_name"]');
+        const middleNameInput = row.querySelector('input[data-field="middle_name"]');
+        const lastNameInput = row.querySelector('input[data-field="last_name"]');
+        const departmentSelect = row.querySelector('.department-select');
+        
+        // Lưu giá trị ban đầu, nếu role đã được selected thì lấy role_name từ option được selected
+        const selectedRoleOption = roleSelect.options[roleSelect.selectedIndex];
+        const initialRole = selectedRoleOption ? selectedRoleOption.value : '';
+        
+        originalValues[username] = {
+            role: initialRole,
+            first_name: firstNameInput.value,
+            middle_name: middleNameInput.value,
+            last_name: lastNameInput.value,
+            department_key: departmentSelect.value
+        };
+        
+        console.log(`[init] User ${username} original values:`, originalValues[username]);
+
+        function checkChanges() {
+            const saveBtn = row.querySelector('.btn-save');
+            const validRoles = ['ADMIN', 'VIEWER', 'EDITOR'];
+            const roleChanged = roleSelect.value !== originalValues[username].role;
+            
+            // Nếu có thay đổi role, phải chọn một vai trò hợp lệ
+            if (roleChanged && (!roleSelect.value || !validRoles.includes(roleSelect.value))) {
+                saveBtn.disabled = true;
+                saveBtn.classList.remove('btn-active');
+                return;
+            }
+            
+            const hasChanges = 
+                roleSelect.value !== originalValues[username].role ||
+                firstNameInput.value !== originalValues[username].first_name ||
+                middleNameInput.value !== originalValues[username].middle_name ||
+                lastNameInput.value !== originalValues[username].last_name ||
+                departmentSelect.value !== originalValues[username].department_key;
+            
+            if (hasChanges) {
+                saveBtn.disabled = false;
+                saveBtn.classList.add('btn-active');
+            } else {
+                saveBtn.disabled = true;
+                saveBtn.classList.remove('btn-active');
+            }
+        }
+
+        roleSelect.addEventListener('change', checkChanges);
+        firstNameInput.addEventListener('input', checkChanges);
+        middleNameInput.addEventListener('input', checkChanges);
+        lastNameInput.addEventListener('input', checkChanges);
+        departmentSelect.addEventListener('change', checkChanges);
+    });
+
+    function saveUserInfo(username) {
+        const row = document.querySelector(`tr[data-username="${username}"]`);
+        const roleSelect = row.querySelector('.role-select');
+        const firstNameInput = row.querySelector('input[data-field="first_name"]');
+        const middleNameInput = row.querySelector('input[data-field="middle_name"]');
+        const lastNameInput = row.querySelector('input[data-field="last_name"]');
+        const departmentSelect = row.querySelector('.department-select');
+        const saveBtn = row.querySelector('.btn-save');
+
+        const roleName = roleSelect.value;
+        const firstName = firstNameInput.value.trim();
+        const middleName = middleNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+        const departmentKey = departmentSelect.value.trim();
+
+        // Validation: Nếu có thay đổi role, phải chọn một vai trò hợp lệ
+        const validRoles = ['ADMIN', 'VIEWER', 'EDITOR'];
+        const roleChanged = roleName !== originalValues[username].role;
+        
+        if (roleChanged && (!roleName || !validRoles.includes(roleName))) {
+            showMessage('Vui lòng chọn một vai trò hợp lệ (ADMIN, VIEWER hoặc EDITOR)', 'error');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Đang lưu...';
+
+        const updateData = {
+            username: username,
+            first_name: firstName,
+            middle_name: middleName,
+            last_name: lastName,
+            department_key: departmentKey
+        };
+
+        if (roleName && validRoles.includes(roleName)) {
+            updateData.role_name = roleName;
+        }
+
+        console.log('[saveUserInfo] Sending update request:', updateData);
+        
+        fetch('/api/user/update-info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => {
+            console.log('[saveUserInfo] Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('[saveUserInfo] Response data:', data);
+            if (data.success) {
+                showMessage(`Đã cập nhật thông tin cho ${username} thành công`, 'success');
+                originalValues[username] = {
+                    role: roleName || originalValues[username].role,
+                    first_name: firstName,
+                    middle_name: middleName,
+                    last_name: lastName,
+                    department_key: departmentKey
+                };
+                
+                if (roleName) {
+                    const roleBadge = row.querySelector('.role-badge');
+                    roleBadge.textContent = roleName;
+                    roleBadge.className = `role-badge role-${roleName.toLowerCase()}`;
+                    roleSelect.value = roleName;
+                }
+                
+                saveBtn.textContent = 'Lưu';
+                
+                const hasChanges = 
+                    roleSelect.value !== originalValues[username].role ||
+                    firstNameInput.value !== originalValues[username].first_name ||
+                    middleNameInput.value !== originalValues[username].middle_name ||
+                    lastNameInput.value !== originalValues[username].last_name ||
+                    departmentSelect.value !== originalValues[username].department_key;
+                
+                if (!hasChanges) {
+                    saveBtn.disabled = true;
+                    saveBtn.classList.remove('btn-active');
+                }
+            } else {
+                const errorMsg = data.error || 'Có lỗi xảy ra';
+                console.error('[saveUserInfo] Error from server:', errorMsg);
+                showMessage(errorMsg, 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Lưu';
+            }
+        })
+        .catch(error => {
+            console.error('[saveUserInfo] Fetch error:', error);
+            showMessage(`Có lỗi xảy ra khi kết nối đến server: ${error.message}`, 'error');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Lưu';
+        });
+    }
+
+
+    function showMessage(message, type) {
+        const container = document.getElementById('messageContainer');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flash-message flash-${type}`;
+        messageDiv.textContent = message;
+        container.innerHTML = '';
+        container.appendChild(messageDiv);
+
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+    }
+</script>
+{% endblock %}

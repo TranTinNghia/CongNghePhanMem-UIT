@@ -1,0 +1,9 @@
+# File mẫu - Copy thành config.yaml và điền thông tin thực tế
+users:
+  driver: "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+  url: "jdbc:sqlserver://your-server:1433;databaseName=btn;encrypt=true;trustServerCertificate=true"
+  username: "your_username"
+  password: "your_password"
+  schema: "dbo"
+  table: "users"
+
