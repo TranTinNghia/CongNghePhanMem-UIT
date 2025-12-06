@@ -275,14 +275,15 @@ def register():
             except Exception as ie:
                 # Xử lý cả pymssql và pyodbc IntegrityError
                 error_type = type(ie).__name__
-                if USE_PYMSSQL:
-                    # pymssql raises pymssql.IntegrityError
-                    if error_type != 'IntegrityError':
-                        raise
+                error_msg_lower = str(ie).lower()
+                
+                # Kiểm tra nếu là IntegrityError (cả pymssql và pyodbc đều có)
+                if error_type == 'IntegrityError' or 'duplicate' in error_msg_lower or 'unique constraint' in error_msg_lower or 'primary key' in error_msg_lower:
+                    # Đây là IntegrityError, xử lý như cũ
+                    pass
                 else:
-                    # pyodbc raises pyodbc.IntegrityError
-                    if error_type != 'IntegrityError':
-                        raise
+                    # Không phải IntegrityError, raise lại
+                    raise
                 conn.rollback()
                 conn.close()
                 error_msg = str(ie).lower()
