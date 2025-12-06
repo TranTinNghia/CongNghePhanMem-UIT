@@ -9,6 +9,36 @@ import os
 from typing import Optional
 
 
+class ConnectionWrapper:
+    """Wrapper để xử lý sự khác biệt giữa pymssql và pyodbc"""
+    def __init__(self, conn):
+        self._conn = conn
+        self._is_pymssql = USE_PYMSSQL
+    
+    def __getattr__(self, name):
+        # Nếu là autocommit và dùng pymssql, return False (pymssql mặc định không autocommit)
+        if name == 'autocommit' and self._is_pymssql:
+            return False
+        return getattr(self._conn, name)
+    
+    def __setattr__(self, name, value):
+        # Nếu set autocommit và dùng pymssql, bỏ qua (pymssql không hỗ trợ set autocommit)
+        if name == 'autocommit' and self._is_pymssql:
+            # pymssql mặc định không autocommit, không cần set
+            return
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+        else:
+            setattr(self._conn, name, value)
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args):
+        if hasattr(self._conn, 'close'):
+            self._conn.close()
+
+
 def load_config():
     # Ưu tiên đọc từ environment variables (cho production/deploy)
     db_url = os.environ.get('DB_URL')
@@ -121,7 +151,8 @@ def get_db_connection():
             if not conn:
                 raise Exception("Không thể kết nối với bất kỳ ODBC driver nào")
         
-        return conn
+        # Wrap connection để xử lý sự khác biệt giữa pymssql và pyodbc
+        return ConnectionWrapper(conn)
     except Exception as e:
         print(f"Lỗi kết nối database: {e}")
         import traceback
