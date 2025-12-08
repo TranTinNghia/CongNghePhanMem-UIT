@@ -48,7 +48,10 @@ class ServiceManager:
             )
             
             if not container_key:
-                print(f"[ServiceManager] Could not find container_key for ({service_info['container_size']}, {service_info['container_status']}, {service_info['container_type']})")
+                size = service_info["container_size"]
+                status = service_info["container_status"]
+                ctype = service_info["container_type"]
+                print(f"[ServiceManager] Could not find container_key for ({size}, {status}, {ctype})")
                 continue
             
             success = self.service_service.save_service_scd2(

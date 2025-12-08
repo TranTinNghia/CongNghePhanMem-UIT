@@ -70,7 +70,7 @@ class DashboardReportService:
         
         current = start_date
         while current <= current_date:
-            months.append(current.strftime('%m/%Y'))
+            months.append(current.strftime("%m/%Y"))
             if current.month == 12:
                 current = current.replace(year=current.year + 1, month=1)
             else:
@@ -88,12 +88,12 @@ class DashboardReportService:
             params = []
             
             if customer_keys and len(customer_keys) > 0:
-                placeholders = ','.join(['?' for _ in customer_keys])
+                placeholders = ",".join(["?" for _ in customer_keys])
                 where_clauses.append(f"c.customer_key IN ({placeholders})")
                 params.extend(customer_keys)
             
             if month_years and len(month_years) > 0:
-                placeholders = ','.join(['?' for _ in month_years])
+                placeholders = ",".join(["?" for _ in month_years])
                 where_clauses.append(f"FORMAT(r.receipt_date, 'MM/yyyy') IN ({placeholders})")
                 params.extend(month_years)
             
@@ -148,32 +148,22 @@ class DashboardReportService:
             params = []
             
             if customer_keys and len(customer_keys) > 0:
-                # Clean và filter customer_keys
                 cleaned_customer_keys = [k.strip() for k in customer_keys if k and k.strip()]
-                if len(cleaned_customer_keys) == 0:
-                    print(f"[get_monthly_container_usage] No valid customer_keys after cleaning")
-                else:
-                    # Luôn dùng IN, kể cả khi chỉ có 1 giá trị (để tránh vấn đề với pyodbc)
-                    placeholders = ','.join(['?' for _ in cleaned_customer_keys])
+                if len(cleaned_customer_keys) > 0:
+                    placeholders = ",".join(["?" for _ in cleaned_customer_keys])
                     where_clauses.append(f"c.customer_key IN ({placeholders})")
                     params.extend(cleaned_customer_keys)
-                    print(f"[get_monthly_container_usage] Filtering by {len(cleaned_customer_keys)} customer_keys: {cleaned_customer_keys}")
-            else:
-                print(f"[get_monthly_container_usage] No customer_keys filter applied")
             
             if month_years and len(month_years) > 0:
-                placeholders = ','.join(['?' for _ in month_years])
+                placeholders = ",".join(["?" for _ in month_years])
                 where_clauses.append(f"FORMAT(r.receipt_date, 'MM/yyyy') IN ({placeholders})")
                 params.extend(month_years)
-                print(f"[get_monthly_container_usage] Filtering by month_years: {month_years}")
             
             where_sql = " AND ".join(where_clauses)
-            print(f"[get_monthly_container_usage] WHERE clause: {where_sql}")
-            print(f"[get_monthly_container_usage] Params: {params}, type: {type(params)}")
-            print(f"[get_monthly_container_usage] Params tuple: {tuple(params) if params else None}")
             
             cursor = conn.cursor()
-            sql_query = f"""SELECT 
+            cursor.execute(
+                f"""SELECT 
                     FORMAT(r.receipt_date, 'MM/yyyy') AS month_year,
                     cont.container_size,
                     COUNT(*) AS total_count
@@ -186,12 +176,9 @@ class DashboardReportService:
                     AND s.is_active = N'Y'
                     AND cont.is_active = N'Y'
                 GROUP BY FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_size
-                ORDER BY month_year, cont.container_size"""
-            
-            print(f"[get_monthly_container_usage] SQL Query: {sql_query}")
-            print(f"[get_monthly_container_usage] Executing with params: {tuple(params) if params else ()}")
-            
-            cursor.execute(sql_query, tuple(params) if params else ())
+                ORDER BY month_year, cont.container_size""",
+                tuple(params) if params else ()
+            )
             results = cursor.fetchall()
             conn.close()
             
@@ -221,18 +208,16 @@ class DashboardReportService:
             params = []
             
             if customer_keys and len(customer_keys) > 0:
-                # Clean và filter customer_keys, luôn dùng IN
                 cleaned_customer_keys = [k.strip() for k in customer_keys if k and k.strip()]
                 if len(cleaned_customer_keys) > 0:
-                    placeholders = ','.join(['?' for _ in cleaned_customer_keys])
+                    placeholders = ",".join(["?" for _ in cleaned_customer_keys])
                     where_clauses.append(f"c.customer_key IN ({placeholders})")
                     params.extend(cleaned_customer_keys)
             
             if month_years and len(month_years) > 0:
-                # Clean và filter month_years, luôn dùng IN
                 cleaned_month_years = [m.strip() for m in month_years if m and m.strip()]
                 if len(cleaned_month_years) > 0:
-                    placeholders = ','.join(['?' for _ in cleaned_month_years])
+                    placeholders = ",".join(["?" for _ in cleaned_month_years])
                     where_clauses.append(f"FORMAT(r.receipt_date, 'MM/yyyy') IN ({placeholders})")
                     params.extend(cleaned_month_years)
             
@@ -286,12 +271,12 @@ class DashboardReportService:
             params = []
             
             if customer_keys and len(customer_keys) > 0:
-                placeholders = ','.join(['?' for _ in customer_keys])
+                placeholders = ",".join(["?" for _ in customer_keys])
                 where_clauses.append(f"c.customer_key IN ({placeholders})")
                 params.extend(customer_keys)
             
             if month_years and len(month_years) > 0:
-                placeholders = ','.join(['?' for _ in month_years])
+                placeholders = ",".join(["?" for _ in month_years])
                 where_clauses.append(f"FORMAT(r.receipt_date, 'MM/yyyy') IN ({placeholders})")
                 params.extend(month_years)
             
@@ -376,18 +361,16 @@ class DashboardReportService:
             params = []
             
             if customer_keys and len(customer_keys) > 0:
-                # Clean và filter customer_keys, luôn dùng IN
                 cleaned_customer_keys = [k.strip() for k in customer_keys if k and k.strip()]
                 if len(cleaned_customer_keys) > 0:
-                    placeholders = ','.join(['?' for _ in cleaned_customer_keys])
+                    placeholders = ",".join(["?" for _ in cleaned_customer_keys])
                     where_clauses.append(f"c.customer_key IN ({placeholders})")
                     params.extend(cleaned_customer_keys)
             
             if month_years and len(month_years) > 0:
-                # Clean và filter month_years, luôn dùng IN
                 cleaned_month_years = [m.strip() for m in month_years if m and m.strip()]
                 if len(cleaned_month_years) > 0:
-                    placeholders = ','.join(['?' for _ in cleaned_month_years])
+                    placeholders = ",".join(["?" for _ in cleaned_month_years])
                     where_clauses.append(f"EXISTS (SELECT 1 FROM dbo.receipts r2 INNER JOIN dbo.lines l2 ON r2.receipt_key = l2.receipt_key WHERE r2.customer_key = c.customer_key AND FORMAT(r2.receipt_date, 'MM/yyyy') IN ({placeholders}))")
                     params.extend(cleaned_month_years)
             
@@ -434,18 +417,16 @@ class DashboardReportService:
             params = []
             
             if customer_keys and len(customer_keys) > 0:
-                # Clean và filter customer_keys, luôn dùng IN
                 cleaned_customer_keys = [k.strip() for k in customer_keys if k and k.strip()]
                 if len(cleaned_customer_keys) > 0:
-                    placeholders = ','.join(['?' for _ in cleaned_customer_keys])
+                    placeholders = ",".join(["?" for _ in cleaned_customer_keys])
                     where_clauses.append(f"c.customer_key IN ({placeholders})")
                     params.extend(cleaned_customer_keys)
             
             if month_years and len(month_years) > 0:
-                # Clean và filter month_years, luôn dùng IN
                 cleaned_month_years = [m.strip() for m in month_years if m and m.strip()]
                 if len(cleaned_month_years) > 0:
-                    placeholders = ','.join(['?' for _ in cleaned_month_years])
+                    placeholders = ",".join(["?" for _ in cleaned_month_years])
                     where_clauses.append(f"FORMAT(r.receipt_date, 'MM/yyyy') IN ({placeholders})")
                     params.extend(cleaned_month_years)
             

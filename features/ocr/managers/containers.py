@@ -37,7 +37,7 @@ class ContainerManager:
                 saved_count += 1
                 print(f"[ContainerManager] Saved container successfully: {container_info}")
             else:
-                print(f"[ContainerManager] Failed to save container: {container_info}")
+                print(f'[ContainerManager] Failed to save container: {container_info}')
         
         print(f"[ContainerManager] Saved {saved_count}/{len(items)} containers")
         return saved_count

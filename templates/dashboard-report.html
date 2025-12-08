@@ -132,12 +132,9 @@ let containerChart = null;
 let containerUsageChart = null;
 let containerTypeChart = null;
 
-// Flag để tránh vòng lặp khi sync tooltip
 let isSyncingCharts = false;
-
-// Hàm để highlight một tháng trên tất cả các biểu đồ (trừ biểu đồ nguồn)
 function highlightMonthAcrossCharts(monthLabel, sourceChart, event) {
-    if (isSyncingCharts) return; // Tránh vòng lặp
+    if (isSyncingCharts) return;
     
     isSyncingCharts = true;
     
@@ -152,45 +149,37 @@ function highlightMonthAcrossCharts(monthLabel, sourceChart, event) {
         if (chart && chart !== sourceChart && monthLabel) {
             const monthIndex = chart.data.labels.indexOf(monthLabel);
             if (monthIndex !== -1) {
-                // Set hover state cho tất cả datasets tại index này
                 const activeElements = chart.data.datasets.map((dataset, datasetIndex) => ({
                     datasetIndex: datasetIndex,
                     index: monthIndex
                 }));
                 chart.setActiveElements(activeElements);
                 
-                // Hiển thị tooltip trên biểu đồ khác
                 if (event && chart.tooltip) {
                     try {
                         const canvas = chart.canvas;
                         const rect = canvas.getBoundingClientRect();
                         const scale = chart.scales.x;
                         
-                        // Tính toán vị trí của bar (tính từ left của scale)
                         let xPos;
                         if (scale.getPixelForValue) {
                             xPos = scale.getPixelForValue(monthIndex);
                         } else {
-                            // Fallback: tính toán thủ công
                             const barWidth = scale.width / chart.data.labels.length;
                             xPos = scale.left + (monthIndex + 0.5) * barWidth;
                         }
                         
-                        // Tính toán vị trí Y (giữa canvas)
                         const yPos = scale.bottom - (scale.bottom - scale.top) / 2;
                         
-                        // Set active elements và vị trí cho tooltip
                         chart.tooltip.setActiveElements(activeElements, { x: xPos, y: yPos });
                         
-                        // Force update tooltip
                         chart.tooltip.update(true);
                     } catch (e) {
-                        // Nếu có lỗi, chỉ highlight mà không hiển thị tooltip
                         console.log('Error showing tooltip:', e);
                     }
                 }
                 
-                chart.update('none'); // 'none' để không trigger animation
+                chart.update('none');
             }
         }
     });
@@ -198,7 +187,6 @@ function highlightMonthAcrossCharts(monthLabel, sourceChart, event) {
     isSyncingCharts = false;
 }
 
-// Hàm để reset highlight trên tất cả các biểu đồ
 function resetHighlightAcrossCharts() {
     const charts = [revenueContainerChart, containerChart, containerUsageChart, containerTypeChart];
     charts.forEach(chart => {
@@ -212,20 +200,16 @@ function resetHighlightAcrossCharts() {
     });
 }
 
-// Hàm để thêm event listeners cho một biểu đồ
 function addChartInteractionListeners(chart, canvasId) {
     if (!chart) return;
     
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
-    // Xóa các event listeners cũ nếu có (bằng cách clone canvas)
-    // Lưu trữ các handlers để có thể xóa sau
     if (!canvas._chartInteractionHandlers) {
         canvas._chartInteractionHandlers = {};
     }
     
-    // Xóa handlers cũ nếu có
     if (canvas._chartInteractionHandlers.mousemove) {
         canvas.removeEventListener('mousemove', canvas._chartInteractionHandlers.mousemove);
     }
@@ -251,11 +235,9 @@ function addChartInteractionListeners(chart, canvasId) {
         resetHighlightAcrossCharts();
     };
     
-    // Lưu handlers để có thể xóa sau
     canvas._chartInteractionHandlers.mousemove = mousemoveHandler;
     canvas._chartInteractionHandlers.mouseleave = mouseleaveHandler;
     
-    // Thêm event listeners
     canvas.addEventListener('mousemove', mousemoveHandler);
     canvas.addEventListener('mouseleave', mouseleaveHandler);
 }
@@ -289,16 +271,13 @@ function getFilterParams() {
     
     const params = new URLSearchParams();
     
-    // Luôn gửi customer_key để filter được áp dụng
     if (selectAllCustomers) {
-        // Nếu chọn "Tất cả khách hàng", gửi tất cả customer_keys
         if (allCustomersList && allCustomersList.length > 0) {
             allCustomersList.forEach(customer => {
                 params.append('customer_key', customer.customer_key);
             });
         }
     } else {
-        // Nếu chọn một số khách hàng cụ thể, gửi các customer_keys đã chọn
         const customerCheckboxes = document.querySelectorAll('#customerFilterContainer input[type="checkbox"]:not(#selectAllCustomers):checked');
         if (customerCheckboxes.length > 0) {
             customerCheckboxes.forEach(cb => {
@@ -309,18 +288,13 @@ function getFilterParams() {
         }
     }
     
-    console.log('getFilterParams - customer_keys:', Array.from(params.getAll('customer_key')));
-    
-    // Luôn gửi month_year để filter được áp dụng
     if (selectAllMonths) {
-        // Nếu chọn "Tất cả tháng", gửi tất cả month_years
         if (allMonths && allMonths.length > 0) {
             allMonths.forEach(month => {
                 params.append('month_year', month);
             });
         }
     } else {
-        // Nếu chọn một số tháng cụ thể, gửi các month_years đã chọn
         const monthCheckboxes = document.querySelectorAll('#monthFilterContainer input[type="checkbox"]:checked');
         monthCheckboxes.forEach(cb => {
             params.append('month_year', cb.value);
@@ -532,9 +506,8 @@ async function loadCustomerMonthlyRevenue() {
             }
             
             const canvas = document.getElementById('revenueContainerChart');
-            // Giữ kích thước cố định dựa trên số tháng tối đa có thể có
             const maxMonths = allMonths.length > 0 ? allMonths.length : monthsToShow.length;
-            canvas.width = Math.max(maxMonths * 80, 1200); // Tối thiểu 1200px để đảm bảo biểu đồ không quá nhỏ
+            canvas.width = Math.max(maxMonths * 80, 1200);
             canvas.height = 700;
             
             revenueContainerChart = new Chart(ctx, {
@@ -593,7 +566,6 @@ async function loadCustomerMonthlyRevenue() {
                         },
                         tooltip: {
                             filter: function(tooltipItem) {
-                                // Với mode: 'nearest', chỉ dataset gần nhất được hover
                                 return true;
                             },
                             callbacks: {
@@ -608,7 +580,6 @@ async function loadCustomerMonthlyRevenue() {
                                     return `Tổng doanh thu: ${formatCurrency(value)}`;
                                 },
                                 afterBody: function(context) {
-                                    // Hiển thị tên khách hàng và mã số thuế
                                     if (context.length > 0) {
                                         const dataset = context[0].dataset;
                                         if (dataset.customer_name) {
@@ -623,7 +594,6 @@ async function loadCustomerMonthlyRevenue() {
                 }
             });
             
-            // Thêm event listeners cho tương tác đồng bộ
             addChartInteractionListeners(revenueContainerChart, 'revenueContainerChart');
             
             if (selectedCustomers && colors) {
@@ -756,9 +726,8 @@ async function loadCustomerMonthlyContainer() {
             }
             
             const canvas = document.getElementById('containerChart');
-            // Giữ kích thước cố định dựa trên số tháng tối đa có thể có
             const maxMonths = allMonths.length > 0 ? allMonths.length : monthsToShow.length;
-            canvas.width = Math.max(maxMonths * 80, 1200); // Tối thiểu 1200px để đảm bảo biểu đồ không quá nhỏ
+            canvas.width = Math.max(maxMonths * 80, 1200);
             canvas.height = 700;
             
             containerChart = new Chart(ctx, {
@@ -815,7 +784,6 @@ async function loadCustomerMonthlyContainer() {
                         },
                         tooltip: {
                             filter: function(tooltipItem) {
-                                // Với mode: 'nearest', chỉ dataset gần nhất được hover
                                 return true;
                             },
                             callbacks: {
@@ -830,7 +798,6 @@ async function loadCustomerMonthlyContainer() {
                                     return `Tổng số container: ${formatNumber(value)}`;
                                 },
                                 afterBody: function(context) {
-                                    // Hiển thị tên khách hàng và mã số thuế
                                     if (context.length > 0) {
                                         const dataset = context[0].dataset;
                                         if (dataset.customer_name) {
@@ -845,7 +812,6 @@ async function loadCustomerMonthlyContainer() {
                 }
             });
             
-            // Thêm event listeners cho tương tác đồng bộ
             addChartInteractionListeners(containerChart, 'containerChart');
             
             if (selectedCustomers && colors) {
@@ -885,17 +851,14 @@ async function loadCustomerContainerUsage() {
             
             const monthsToShow = selectedMonths.length > 0 ? selectedMonths : allMonths;
             
-            // Tạo dataMap: key = "month_year_container_size", value = total_count
             const dataMap = {};
             result.data.forEach(d => {
                 const key = `${d.month_year}_${d.container_size}`;
                 dataMap[key] = d.total_count;
             });
             
-            // Lấy danh sách tất cả các kích cỡ container
             const containerSizes = [...new Set(result.data.map(d => d.container_size))].sort((a, b) => a - b);
             
-            // Tạo datasets cho mỗi kích cỡ container
             const datasets = [];
             const colors = [
                 { bar: 'rgba(102, 126, 234, 0.8)', line: 'rgba(102, 126, 234, 1)' },
@@ -1005,10 +968,8 @@ async function loadCustomerContainerUsage() {
                 }
             });
             
-            // Thêm event listeners cho tương tác đồng bộ
             addChartInteractionListeners(containerUsageChart, 'containerUsageChart');
             
-            // Update legend
             const legendContainer = document.getElementById('containerUsageChartLegend');
             legendContainer.innerHTML = '';
             
@@ -1056,24 +1017,20 @@ async function loadContainerTypeUsage() {
             
             const monthsToShow = selectedMonths.length > 0 ? selectedMonths : allMonths;
             
-            // Tạo dataMap: key = "month_year_container_type", value = total_count
             const dataMap = {};
             result.data.forEach(d => {
                 const key = `${d.month_year}_${d.container_type}`;
                 dataMap[key] = d.total_count;
             });
             
-            // Lấy danh sách tất cả các loại container
             const containerTypes = [...new Set(result.data.map(d => d.container_type))].sort();
             
-            // Function to format container type
             function formatContainerType(type) {
                 if (type === 'GP') return 'thường';
                 if (type === 'HC') return 'lạnh';
                 return type;
             }
             
-            // Tạo datasets cho mỗi loại container
             const datasets = [];
             const colors = [
                 { bar: 'rgba(102, 126, 234, 0.8)', line: 'rgba(102, 126, 234, 1)' },
@@ -1184,10 +1141,8 @@ async function loadContainerTypeUsage() {
                 }
             });
             
-            // Thêm event listeners cho tương tác đồng bộ
             addChartInteractionListeners(containerTypeChart, 'containerTypeChart');
             
-            // Update legend
             const legendContainer = document.getElementById('containerTypeChartLegend');
             legendContainer.innerHTML = '';
             
@@ -1213,14 +1168,16 @@ async function loadCustomersByProvince() {
         const params = getFilterParams();
         const response = await fetch(`/api/dashboard/customers-by-province?${params}`);
         const result = await response.json();
-        if (result.success && result.data.length > 0) {
-            const ctx = document.getElementById('customersByProvinceChart').getContext('2d');
+        
+        const ctx = document.getElementById('customersByProvinceChart').getContext('2d');
+        
+        if (customersByProvinceChart) {
+            customersByProvinceChart.destroy();
+        }
+        
+        if (result.success && result.data && result.data.length > 0) {
             const labels = result.data.map(d => d.province);
             const data = result.data.map(d => d.customer_count);
-            
-            if (customersByProvinceChart) {
-                customersByProvinceChart.destroy();
-            }
             
             customersByProvinceChart = new Chart(ctx, {
                 type: 'bar',
@@ -1252,9 +1209,74 @@ async function loadCustomersByProvince() {
                     }
                 }
             });
+        } else {
+            customersByProvinceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Không có dữ liệu'],
+                    datasets: [{
+                        label: 'Số lượng Khách hàng',
+                        data: [0],
+                        backgroundColor: 'rgba(200, 200, 200, 0.5)',
+                        borderColor: 'rgba(200, 200, 200, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
         }
     } catch (error) {
         console.error('Error loading customers by province:', error);
+        const ctx = document.getElementById('customersByProvinceChart').getContext('2d');
+        if (customersByProvinceChart) {
+            customersByProvinceChart.destroy();
+        }
+        customersByProvinceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Lỗi tải dữ liệu'],
+                datasets: [{
+                    label: 'Số lượng Khách hàng',
+                    data: [0],
+                    backgroundColor: 'rgba(244, 67, 54, 0.5)',
+                    borderColor: 'rgba(244, 67, 54, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
     }
 }
 

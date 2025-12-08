@@ -14,7 +14,7 @@ class CustomerManager:
             print(f"[CustomerManager] Skipping: missing information (tax_code={tax_code}, customer_name={customer_name}, address={address})")
             return False
         
-        print(f"[CustomerManager] Processing customer: tax_code={tax_code}, customer_name={customer_name}")
+        print(f'[CustomerManager] Processing customer: tax_code={tax_code}, customer_name={customer_name}')
         print(f"[CustomerManager] Address: '{address}'")
         
         province_name = self.province_extractor.extract_province_name(address)
@@ -38,7 +38,7 @@ class CustomerManager:
         )
         
         if success:
-            print(f"[CustomerManager] Saved customer successfully: {tax_code}")
+            print(f'[CustomerManager] Saved customer successfully: {tax_code}')
         else:
             print(f"[CustomerManager] Failed to save customer: {tax_code}")
         

@@ -401,13 +401,8 @@ function displayResults(data) {
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
     
-    console.log('DEBUG: data.items =', data.items);
-    console.log('DEBUG: data.items length =', data.items ? data.items.length : 0);
-    
     if (data.items && data.items.length > 0) {
-        console.log('Raw items data:', data.items);
         data.items.forEach(item => {
-            console.log('Item:', item);
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${item.container_number || '-'}</td>
@@ -422,7 +417,6 @@ function displayResults(data) {
         });
         document.getElementById('tableSection').style.display = 'block';
     } else {
-        console.log('No items found or items array is empty');
         document.getElementById('tableSection').style.display = 'none';
     }
 }
@@ -482,9 +476,7 @@ function displayMultipleResults(results) {
         infoTableBody.appendChild(infoRow);
         
         if (result.items && result.items.length > 0) {
-            console.log('Raw items data (multiple):', result.items);
             result.items.forEach(item => {
-                console.log('Item (multiple):', item);
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${item.container_number || '-'}</td>

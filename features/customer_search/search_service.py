@@ -56,8 +56,7 @@ class CustomerSearchService:
             end_date = datetime(current_year, current_month, last_day)
             
             cursor.execute(
-                """
-                SELECT 
+                """SELECT 
                     YEAR(r.receipt_date) as year,
                     MONTH(r.receipt_date) as month,
                     SUM(l.amount) as total_amount,

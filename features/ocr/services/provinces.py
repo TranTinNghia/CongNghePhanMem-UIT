@@ -28,7 +28,7 @@ class ProvinceService:
                 conn.close()
                 return result[0]
             
-            province_name_no_dash = province_name_clean.replace('–', '-').replace('—', '-')
+            province_name_no_dash = province_name_clean.replace("–", "-").replace("—", "-")
             if province_name_no_dash != province_name_clean:
                 cursor.execute(
                     "SELECT province_key FROM dbo.provinces WHERE LOWER(LTRIM(RTRIM(old_province))) = LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",

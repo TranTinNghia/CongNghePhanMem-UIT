@@ -14,7 +14,7 @@ class ReceiptManager:
             print(f"[ReceiptManager] Skipping: one or more fields are '-'")
             return False
         
-        print(f"[ReceiptManager] Processing receipt: receipt_code={receipt_code}, shipment_code={shipment_code}, invoice_number={invoice_number}")
+        print(f'[ReceiptManager] Processing receipt: receipt_code={receipt_code}, shipment_code={shipment_code}, invoice_number={invoice_number}')
         
         success = self.receipt_service.save_receipt_scd1(
             receipt_code=receipt_code,

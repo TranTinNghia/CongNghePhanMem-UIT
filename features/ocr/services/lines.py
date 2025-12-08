@@ -55,7 +55,7 @@ class LineService:
                 return result[0]
             return None
         except Exception as e:
-            print(f"[LineService] Error getting service_key: {e}")
+            print(f'[LineService] Error getting service_key: {e}')
             try:
                 conn.close()
             except:

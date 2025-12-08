@@ -33,9 +33,9 @@ class OCRProcessor:
             all_text = ""
             for image in images:
                 try:
-                    text = pytesseract.image_to_string(image, lang='vie+eng')
+                    text = pytesseract.image_to_string(image, lang="vie+eng")
                 except:
-                    text = pytesseract.image_to_string(image, lang='eng')
+                    text = pytesseract.image_to_string(image, lang="eng")
                 all_text += text + "\n"
             return all_text
         except Exception as e:
@@ -44,9 +44,9 @@ class OCRProcessor:
     
     def extract_lot_code(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Mã\s*lô\s*hàng|Lô\s*hàng)[:\s]+([A-Z0-9]{6,})',
-            r'Lô[:\s]+([A-Z0-9]{6,})',
-            r'\b([0-9]{8,})\b',
+            r"(?:Mã\s*lô\s*hàng|Lô\s*hàng)[:\s]+([A-Z0-9]{6,})",
+            r"Lô[:\s]+([A-Z0-9]{6,})",
+            r"\b([0-9]{8,})\b",
         ]
         
         for pattern in patterns:
@@ -59,8 +59,8 @@ class OCRProcessor:
     
     def extract_transaction_code(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Mã\s*giao\s*dịch|Giao\s*dịch)[:\s]+([A-Z0-9]+)',
-            r'([A-Z0-9]{10,})',
+            r"(?:Mã\s*giao\s*dịch|Giao\s*dịch)[:\s]+([A-Z0-9]+)",
+            r"([A-Z0-9]{10,})",
         ]
         
         for pattern in patterns:
@@ -73,9 +73,9 @@ class OCRProcessor:
     
     def extract_receipt_date(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Ngày\s*biên\s*nhận|Ngày)[:\s]+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?)',
-            r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s+\d{1,2}:\d{2})',
-            r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r"(?:Ngày\s*biên\s*nhận|Ngày)[:\s]+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?)",
+            r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s+\d{1,2}:\d{2})",
+            r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
         ]
         
         for pattern in patterns:
@@ -86,9 +86,9 @@ class OCRProcessor:
     
     def extract_invoice_number(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Số\s*hóa\s*đơn|Hóa\s*đơn)[:\s]+([A-Z0-9]{6,})',
-            r'(?:Invoice|HD)[:\s]+([A-Z0-9]{6,})',
-            r'Số\s*hóa\s*đơn[:\s]+([0-9]{6,})',
+            r"(?:Số\s*hóa\s*đơn|Hóa\s*đơn)[:\s]+([A-Z0-9]{6,})",
+            r"(?:Invoice|HD)[:\s]+([A-Z0-9]{6,})",
+            r"Số\s*hóa\s*đơn[:\s]+([0-9]{6,})",
         ]
         
         for pattern in patterns:
@@ -105,27 +105,27 @@ class OCRProcessor:
     
     def extract_tax_code(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Mã\s*số\s*thuế|MST|Tax\s*code|Mã\s*thuế)[:\s]*([0-9\-]{9,15})',
-            r'(?:Mã\s*số\s*thuế|MST)[:\s]*([0-9]{3}[-]?[0-9]{3}[-]?[0-9]{3}[-]?[0-9]{0,4})',
-            r'(?:Mã\s*số\s*thuế|MST)[:\s]*([0-9]{9,13})',
+            r"(?:Mã\s*số\s*thuế|MST|Tax\s*code|Mã\s*thuế)[:\s]*([0-9\-]{9,15})",
+            r"(?:Mã\s*số\s*thuế|MST)[:\s]*([0-9]{3}[-]?[0-9]{3}[-]?[0-9]{3}[-]?[0-9]{0,4})",
+            r"(?:Mã\s*số\s*thuế|MST)[:\s]*([0-9]{9,13})",
         ]
         
         for pattern in patterns:
             matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
             for match in matches:
-                code = match.group(1).strip().replace('-', '').replace('.', '').replace(' ', '')
+                code = match.group(1).strip().replace("-", "").replace(".", "").replace(" ", "")
                 if 9 <= len(code) <= 13 and code.isdigit():
                     return code
         
-        mst_keywords = re.finditer(r'(?:Mã\s*số\s*thuế|MST|Mã\s*thuế)', text, re.IGNORECASE)
+        mst_keywords = re.finditer(r"(?:Mã\s*số\s*thuế|MST|Mã\s*thuế)", text, re.IGNORECASE)
         for keyword_match in mst_keywords:
             start_pos = keyword_match.end()
             end_pos = min(start_pos + 50, len(text))
             context = text[start_pos:end_pos]
             
-            number_match = re.search(r'([0-9]{2,3}[-.\s]?[0-9]{3}[-.\s]?[0-9]{3}[-.\s]?[0-9]{0,4})', context)
+            number_match = re.search(r"([0-9]{2,3}[-.\s]?[0-9]{3}[-.\s]?[0-9]{3}[-.\s]?[0-9]{0,4})", context)
             if number_match:
-                code = number_match.group(1).strip().replace('-', '').replace('.', '').replace(' ', '')
+                code = number_match.group(1).strip().replace("-", "").replace(".", "").replace(" ", "")
                 if 9 <= len(code) <= 13 and code.isdigit():
                     return code
         
@@ -133,20 +133,20 @@ class OCRProcessor:
     
     def extract_customer_name(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Tên\s*khách\s*hàng|Khách\s*hàng|Customer\s*name)[:\s]+([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s\.,]+?)(?:\n|Mã|Số|Địa|Ngày|$)',
-            r'(CÔNG\s*TY[\s\wÀ-ỹ,\.]+?)(?:\n|Mã|Số|Địa|Ngày|$)',
-            r'(CTY[\s\wÀ-ỹ,\.]+?)(?:\n|Mã|Số|Địa|Ngày|$)',
+            r"(?:Tên\s*khách\s*hàng|Khách\s*hàng|Customer\s*name)[:\s]+([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s\.,]+?)(?:\n|Mã|Số|Địa|Ngày|$)",
+            r"(CÔNG\s*TY[\s\wÀ-ỹ,\.]+?)(?:\n|Mã|Số|Địa|Ngày|$)",
+            r"(CTY[\s\wÀ-ỹ,\.]+?)(?:\n|Mã|Số|Địa|Ngày|$)",
         ]
         
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
             if match:
                 name = match.group(1).strip() if match.groups() else match.group(0).strip()
-                name = re.sub(r'[^\w\sÀ-ỹ,\.]', '', name)
-                name = re.sub(r'\s+', ' ', name).strip()
-                name = re.sub(r'^(?:Tên\s*khách\s*hàng|Khách\s*hàng|Customer)[:\s]+', '', name, flags=re.IGNORECASE)
+                name = re.sub(r"[^\w\sÀ-ỹ,\.]", "", name)
+                name = re.sub(r"\s+", " ", name).strip()
+                name = re.sub(r"^(?:Tên\s*khách\s*hàng|Khách\s*hàng|Customer)[:\s]+", "", name, flags=re.IGNORECASE)
                 
-                name = re.sub(r'\bCông\s+T\b', 'Công Ty', name, flags=re.IGNORECASE)
+                name = re.sub(r"\bCông\s+T\b", "Công Ty", name, flags=re.IGNORECASE)
                 
                 if len(name) > 5:
                     return self.text_formatter.format_text(name, is_company_name=True)
@@ -154,28 +154,28 @@ class OCRProcessor:
     
     def extract_customer_address(self, text: str) -> Optional[str]:
         patterns = [
-            r'(?:Địa\s*chỉ|Address)[:\s]+([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ0-9\s\.,\-\–\—/]+?)(?:\n{2,}|Mã\s*giao\s*dịch|Mã\s*lô|Số\s*hóa\s*đơn|Ngày\s*biên|Chi\s*tiết|$)',
-            r'(?:Địa\s*chỉ|Address)[:\s]+([^\n]+?)(?:\n\s*\n|(?:\n|^)\s*(?:Mã\s*giao\s*dịch|Mã\s*lô|Số\s*hóa|Ngày|Chi\s*tiết))',
-            r'Địa\s*chỉ[:\s]+([A-ZÀ-ỸĐ][^\n]*(?:[A-ZÀ-ỸĐ0-9][^\n]*)*?)(?:\n\s*(?:Mã|Số|Ngày|Chi)|$)',
+            r"(?:Địa\s*chỉ|Address)[:\s]+([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ0-9\s\.,\-\–\—/]+?)(?:\n{2,}|Mã\s*giao\s*dịch|Mã\s*lô|Số\s*hóa\s*đơn|Ngày\s*biên|Chi\s*tiết|$)",
+            r"(?:Địa\s*chỉ|Address)[:\s]+([^\n]+?)(?:\n\s*\n|(?:\n|^)\s*(?:Mã\s*giao\s*dịch|Mã\s*lô|Số\s*hóa|Ngày|Chi\s*tiết))",
+            r"Địa\s*chỉ[:\s]+([A-ZÀ-ỸĐ][^\n]*(?:[A-ZÀ-ỸĐ0-9][^\n]*)*?)(?:\n\s*(?:Mã|Số|Ngày|Chi)|$)",
         ]
         
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
             if match:
                 address = match.group(1).strip()
-                address = re.sub(r'^(?:Địa\s*chỉ|Address)[:\s]+', '', address, flags=re.IGNORECASE)
-                address = re.sub(r'\s+', ' ', address)
-                address = re.sub(r'\s*(?:Mã\s*giao\s*dịch|Mã\s*lô|Số\s*hóa|Ngày|Chi\s*tiết).*$', '', address, flags=re.IGNORECASE)
+                address = re.sub(r"^(?:Địa\s*chỉ|Address)[:\s]+", "", address, flags=re.IGNORECASE)
+                address = re.sub(r"\s+", " ", address)
+                address = re.sub(r"\s*(?:Mã\s*giao\s*dịch|Mã\s*lô|Số\s*hóa|Ngày|Chi\s*tiết).*$", "", address, flags=re.IGNORECASE)
                 address = address.strip()
                 
-                if len(address) > 10 and re.search(r'[A-ZÀ-ỸĐa-zà-ỹđ]', address):
+                if len(address) > 10 and re.search(r"[A-ZÀ-ỸĐa-zà-ỹđ]", address):
                     return self.text_formatter.format_text(address, is_company_name=False)
         
-        address_match = re.search(r'Địa\s*chỉ[:\s]+(.+?)(?=\n\s*(?:Mã|Số|Ngày|Chi|$))', text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+        address_match = re.search(r"Địa\s*chỉ[:\s]+(.+?)(?=\n\s*(?:Mã|Số|Ngày|Chi|$))", text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
         if address_match:
             address = address_match.group(1).strip()
-            address = re.sub(r'\s+', ' ', address)
-            if len(address) > 10 and re.search(r'[A-ZÀ-ỸĐa-zà-ỹđ]', address):
+            address = re.sub(r"\s+", " ", address)
+            if len(address) > 10 and re.search(r"[A-ZÀ-ỸĐa-zà-ỹđ]", address):
                 return self.text_formatter.format_text(address, is_company_name=False)
         
         return None
@@ -185,10 +185,10 @@ class OCRProcessor:
         if not line:
             return None
         
-        line_clean = re.sub(r'[A-Z]{4}[0-9]{7,}', '', line).strip()
-        line_clean = re.sub(r'\*{5,}', '', line_clean).strip()
+        line_clean = re.sub(r"[A-Z]{4}[0-9]{7,}", "", line).strip()
+        line_clean = re.sub(r"\*{5,}", "", line_clean).strip()
         
-        is_phu_thu_7_9_ngay = bool(re.search(r'7\s*[-–—>→]\s*9\s*ngày', line_clean, re.IGNORECASE))
+        is_phu_thu_7_9_ngay = bool(re.search(r"7\s*[-–—>→]\s*9\s*ngày", line_clean, re.IGNORECASE))
         
         parts = line_clean.split()
         
@@ -201,11 +201,11 @@ class OCRProcessor:
         if is_phu_thu_7_9_ngay:
             for i in range(len(parts)):
                 part = parts[i]
-                if part == '7' or part == '9':
-                    context = ' '.join(parts[max(0, i-2):min(len(parts), i+3)])
-                    if re.search(r'7\s*[-–—>→]\s*9\s*ngày', context, re.IGNORECASE):
+                if part == "7" or part == "9":
+                    context = " ".join(parts[max(0, i-2):min(len(parts), i+3)])
+                    if re.search(r"7\s*[-–—>→]\s*9\s*ngày", context, re.IGNORECASE):
                         skip_indices.add(i)
-                elif re.search(r'7\s*[-–—>→]\s*9', part, re.IGNORECASE):
+                elif re.search(r"7\s*[-–—>→]\s*9", part, re.IGNORECASE):
                     skip_indices.add(i)
         
         for i in range(len(parts) - 4):
@@ -219,10 +219,10 @@ class OCRProcessor:
                     continue
                 
                 if i + 4 < len(parts):
-                    price = parts[i + 1].replace(',', '').replace('.', '')
+                    price = parts[i + 1].replace(",", "").replace(".", "")
                     tax = parts[i + 2]
                     discount = parts[i + 3]
-                    amount = parts[i + 4].replace(',', '').replace('.', '')
+                    amount = parts[i + 4].replace(",", "").replace(".", "")
                     
                     if (price.isdigit() and int(price) > 1000 and
                         tax.isdigit() and int(tax) < 100 and
@@ -230,16 +230,16 @@ class OCRProcessor:
                         amount.isdigit() and int(amount) > 1000):
                         
                         data_start_idx = i
-                        pattern_type = 'normal'
+                        pattern_type = "normal"
                         break
                 
                 if i + 6 < len(parts):
                     num1 = parts[i + 1]
-                    price_part = parts[i + 2].replace(',', '').replace('.', '')
+                    price_part = parts[i + 2].replace(",", "").replace(".", "")
                     tax = parts[i + 3]
                     discount = parts[i + 4]
                     num2 = parts[i + 5]
-                    amount_part = parts[i + 6].replace(',', '').replace('.', '')
+                    amount_part = parts[i + 6].replace(",", "").replace(".", "")
                     
                     if num1.isdigit() and num2.isdigit() and price_part.isdigit() and amount_part.isdigit():
                         price = num1 + price_part
@@ -251,14 +251,14 @@ class OCRProcessor:
                             int(amount) > 1000):
                             
                             data_start_idx = i
-                            pattern_type = 'with_num'
+                            pattern_type = "with_num"
                             break
             except:
                 continue
         
         if data_start_idx == -1:
             return None
-        if pattern_type == 'with_num':
+        if pattern_type == "with_num":
             option_after = parts[data_start_idx + 7:] if data_start_idx + 7 < len(parts) else []
         else:
             option_after = parts[data_start_idx + 5:] if data_start_idx + 5 < len(parts) else []
@@ -271,8 +271,8 @@ class OCRProcessor:
         else:
             return None
         
-        if not option_before and 'hàng' in option_text and '→' in option_text:
-            match = re.match(r'(hàng\s+\d+\s*→\s*\d+\s*Ngày)\s+(.+)', option_text, re.IGNORECASE)
+        if not option_before and "hàng" in option_text and "→" in option_text:
+            match = re.match(r"(hàng\s+\d+\s*→\s*\d+\s*Ngày)\s+(.+)", option_text, re.IGNORECASE)
             if match:
                 hang_part = match.group(1)
                 other_part = match.group(2)
@@ -282,25 +282,25 @@ class OCRProcessor:
         else:
             option = option_text
         
-        option = re.sub(r'\b[A-Z]{4}[0-9]{3}\b', '', option).strip()
-        option = re.sub(r'\s+', ' ', option)
+        option = re.sub(r"\b[A-Z]{4}[0-9]{3}\b", "", option).strip()
+        option = re.sub(r"\s+", " ", option)
         
-        if re.match(r'^hàng\s+\d+\s*→\s*\d+\s*Ngày$', option, re.IGNORECASE):
-            nang_match = re.search(r'nâng\s+(\d+)', line, re.IGNORECASE)
+        if re.match(r"^hàng\s+\d+\s*→\s*\d+\s*Ngày$", option, re.IGNORECASE):
+            nang_match = re.search(r"nâng\s+(\d+)", line, re.IGNORECASE)
             if nang_match:
                 so_nang = nang_match.group(1)
                 option = f"Phụ thu phí nâng {so_nang} {option}"
             else:
                 option = f"Phụ thu phí nâng {option}"
         
-        giao_match = re.match(r'(Giao\s+cont\s+hàng\s+\d+\s*G?P)\s*(Hàng)?', option, re.IGNORECASE)
+        giao_match = re.match(r"(Giao\s+cont\s+hàng\s+\d+\s*G?P)\s*(Hàng)?", option, re.IGNORECASE)
         if giao_match:
             base = giao_match.group(1)
-            base = re.sub(r'(\d+)\s*G?\s*P', r'\1GP', base)
+            base = re.sub(r"(\d+)\s*G?\s*P", r"\1GP", base)
             option = f"{base} Hàng"
         
         if is_phu_thu_7_9_ngay:
-            option = re.sub(r'\s+1$', '', option).strip()
+            option = re.sub(r"\s+1$", "", option).strip()
         
         if not option or len(option) < 10:
             return None
@@ -310,7 +310,7 @@ class OCRProcessor:
         else:
             quantity = parts[data_start_idx]
         
-        if pattern_type == 'with_num':
+        if pattern_type == "with_num":
             unit_price_str = parts[data_start_idx + 1] + parts[data_start_idx + 2]
             tax = parts[data_start_idx + 3]
             discount_str = parts[data_start_idx + 4]
@@ -369,16 +369,16 @@ class OCRProcessor:
                         
                         line_upper = line.upper()
                         
-                        if any(keyword in line_upper for keyword in ['SỐ ĐK', 'SỐ CONTAINER', 'PHƯƠNG ÁN', 'SỐ LƯỢNG', 'ĐƠN GIÁ']):
+                        if any(keyword in line_upper for keyword in ["SỐ ĐK", "SỐ CONTAINER", "PHƯƠNG ÁN", "SỐ LƯỢNG", "ĐƠN GIÁ"]):
                             i += 1
                             continue
                         
-                        container_match = re.search(r'([A-Z]{4}[0-9]{7,})', line)
+                        container_match = re.search(r"([A-Z]{4}[0-9]{7,})", line)
                         
                         if container_match:
                             current_container = container_match.group(1)
                             parsed = self.parse_service_row(line, current_container)
-                            if parsed and parsed.get('option'):
+                            if parsed and parsed.get("option"):
                                 items.append(parsed)
                         
                         i += 1
@@ -400,14 +400,14 @@ class OCRProcessor:
             if items:
                 valid_items = []
                 for item in items:
-                    option = item.get('option', '')
+                    option = item.get("option", "")
                     
-                    if re.search(r'[A-Z]{4}[0-9]{7,}', option):
+                    if re.search(r"[A-Z]{4}[0-9]{7,}", option):
                         continue
                     
                     if option and len(option) >= 10:
                         option_upper = option.upper()
-                        if any(keyword in option_upper for keyword in ['PHỤ', 'THU', 'GIAO', 'NÂNG', 'HẠ', 'HÀNG', 'CONT', 'PHÍ', 'NGÀY', 'GP']):
+                        if any(keyword in option_upper for keyword in ["PHỤ", "THU", "GIAO", "NÂNG", "HẠ", "HÀNG", "CONT", "PHÍ", "NGÀY", "GP"]):
                             valid_items.append(item)
                 
                 if valid_items:
@@ -417,9 +417,9 @@ class OCRProcessor:
     
     def extract_container_items_from_text(self, text: str) -> List[Dict]:
         items = []
-        lines = text.split('\n')
+        lines = text.split("\n")
         
-        container_pattern = r'([A-Z]{4}[0-9]{7,})'
+        container_pattern = r"([A-Z]{4}[0-9]{7,})"
         
         for line in lines:
             line = line.strip()
@@ -427,7 +427,7 @@ class OCRProcessor:
                 continue
             
             line_upper = line.upper()
-            if any(keyword in line_upper for keyword in ['SỐ CONTAINER', 'PHƯƠNG ÁN', 'ĐƠN GIÁ']):
+            if any(keyword in line_upper for keyword in ["SỐ CONTAINER", "PHƯƠNG ÁN", "ĐƠN GIÁ"]):
                 continue
             
             container_match = re.search(container_pattern, line)
@@ -435,7 +435,7 @@ class OCRProcessor:
             if container_match:
                 current_container = container_match.group(1)
                 parsed = self.parse_service_row(line, current_container)
-                if parsed and parsed.get('option'):
+                if parsed and parsed.get("option"):
                     items.append(parsed)
         
         return items

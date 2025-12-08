@@ -135,7 +135,6 @@ class UserService:
         
         try:
             cursor = conn.cursor()
-            # Kiểm tra xem user có tồn tại không
             cursor.execute(
                 "SELECT user_name FROM dbo.users WHERE LOWER(user_name) = LOWER(?)",
                 (username,)
@@ -146,7 +145,6 @@ class UserService:
                 conn.close()
                 return False
             
-            # Kiểm tra xem role_key có tồn tại không
             cursor.execute(
                 "SELECT role_key FROM dbo.roles WHERE role_key = ?",
                 (role_key,)
@@ -157,7 +155,6 @@ class UserService:
                 conn.close()
                 return False
             
-            # Cập nhật role
             cursor.execute(
                 "UPDATE dbo.users SET role_key = ? WHERE LOWER(user_name) = LOWER(?)",
                 (role_key, username)
@@ -219,8 +216,9 @@ class UserService:
             
             if update_fields:
                 update_values.append(username)
+                update_str = ", ".join(update_fields)
                 cursor.execute(
-                    f"UPDATE dbo.users SET {', '.join(update_fields)} WHERE LOWER(user_name) = LOWER(?)",
+                    f"UPDATE dbo.users SET {update_str} WHERE LOWER(user_name) = LOWER(?)",
                     tuple(update_values)
                 )
                 conn.commit()

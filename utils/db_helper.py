@@ -6,11 +6,8 @@ except ImportError:
     USE_PYMSSQL = False
 import yaml
 import os
-from typing import Optional
-
 
 class CursorWrapper:
-    """Wrapper cho cursor để chuyển đổi ? thành %s cho pymssql"""
     def __init__(self, cursor, is_pymssql):
         self._cursor = cursor
         self._is_pymssql = is_pymssql
@@ -20,8 +17,7 @@ class CursorWrapper:
     
     def execute(self, query, params=None):
         if self._is_pymssql and params is not None:
-            # Chuyển đổi ? thành %s cho pymssql
-            query = query.replace('?', '%s')
+            query = query.replace("?", "%s")
         if params:
             return self._cursor.execute(query, params)
         else:
@@ -29,35 +25,30 @@ class CursorWrapper:
     
     def executemany(self, query, params_list):
         if self._is_pymssql:
-            # Chuyển đổi ? thành %s cho pymssql
-            query = query.replace('?', '%s')
+            query = query.replace("?", "%s")
         return self._cursor.executemany(query, params_list)
 
 
 class ConnectionWrapper:
-    """Wrapper để xử lý sự khác biệt giữa pymssql và pyodbc"""
     def __init__(self, conn):
         self._conn = conn
         self._is_pymssql = USE_PYMSSQL
     
     def __getattr__(self, name):
         # Nếu là autocommit và dùng pymssql, return False (pymssql mặc định không autocommit)
-        if name == 'autocommit' and self._is_pymssql:
+        if name == "autocommit" and self._is_pymssql:
             return False
         return getattr(self._conn, name)
     
     def __setattr__(self, name, value):
-        # Nếu set autocommit và dùng pymssql, bỏ qua (pymssql không hỗ trợ set autocommit)
-        if name == 'autocommit' and self._is_pymssql:
-            # pymssql mặc định không autocommit, không cần set
+        if name == "autocommit" and self._is_pymssql:
             return
-        if name.startswith('_'):
+        if name.startswith("_"):
             super().__setattr__(name, value)
         else:
             setattr(self._conn, name, value)
     
     def cursor(self):
-        """Trả về wrapped cursor để tự động chuyển đổi ? thành %s"""
         cursor = self._conn.cursor()
         return CursorWrapper(cursor, self._is_pymssql)
     
@@ -65,19 +56,17 @@ class ConnectionWrapper:
         return self
     
     def __exit__(self, *args):
-        if hasattr(self._conn, 'close'):
+        if hasattr(self._conn, "close"):
             self._conn.close()
 
 
 def load_config():
-    # Ưu tiên đọc từ environment variables (cho production/deploy)
-    db_url = os.environ.get('DB_URL')
-    db_username = os.environ.get('DB_USERNAME')
-    db_password = os.environ.get('DB_PASSWORD')
-    db_name = os.environ.get('DB_NAME', 'btn')
+    db_url = os.environ.get("DB_URL")
+    db_username = os.environ.get("DB_USERNAME")
+    db_password = os.environ.get("DB_PASSWORD")
+    db_name = os.environ.get("DB_NAME", "btn")
     
     if db_url and db_username and db_password:
-        # Tạo config từ environment variables
         return {
             "url": db_url,
             "username": db_username,
@@ -85,7 +74,7 @@ def load_config():
             "database": db_name
         }
     
-    # Fallback: đọc từ file config.yaml (cho local development)
+    # Fallback: đọc từ file config.yaml
     try:
         with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
@@ -105,26 +94,21 @@ def get_db_connection():
         return None
     
     try:
-        # Xử lý cả environment variables và file config
         if "database" in config:
-            # Từ environment variables
             url = config["url"]
             username = config["username"]
             password = config["password"]
             database = config["database"]
         else:
-            # Từ file config.yaml
             url = config["url"]
             username = config["username"]
             password = config["password"]
             
-            # Parse database từ URL
             if "databaseName=" in url:
                 database = url.split("databaseName=")[1].split(";")[0]
             else:
                 database = "btn"
         
-        # Parse server và port từ URL
         if "//" in url:
             server_part = url.split("//")[1]
             if ":" in server_part:
@@ -138,7 +122,6 @@ def get_db_connection():
             server = "localhost"
             port = 1433
         
-        # Sử dụng pymssql nếu có (không cần ODBC drivers)
         if USE_PYMSSQL:
             try:
                 conn = pymssql.connect(
@@ -150,15 +133,9 @@ def get_db_connection():
                     timeout=10
                 )
             except Exception as e:
-                error_msg = str(e)
                 print(f"Lỗi kết nối với pymssql: {e}")
-                # Kiểm tra nếu là lỗi kết nối qua tunnel
-                if "Unexpected EOF" in error_msg or "connection failed" in error_msg.lower():
-                    print("\n⚠️  CẢNH BÁO: Cloudflare Quick Tunnel có thể không hỗ trợ TCP cho SQL Server.")
-                    print("   Vui lòng xem file CLOUDFLARE_TCP_FIX.md để biết các giải pháp thay thế.")
                 raise Exception(f"Không thể kết nối database với pymssql: {e}")
         else:
-            # Fallback: sử dụng pyodbc (cần ODBC drivers)
             drivers = [
                 "ODBC Driver 18 for SQL Server",
                 "ODBC Driver 17 for SQL Server",
@@ -186,7 +163,6 @@ def get_db_connection():
             if not conn:
                 raise Exception("Không thể kết nối với bất kỳ ODBC driver nào")
         
-        # Wrap connection để xử lý sự khác biệt giữa pymssql và pyodbc
         return ConnectionWrapper(conn)
     except Exception as e:
         print(f"Lỗi kết nối database: {e}")

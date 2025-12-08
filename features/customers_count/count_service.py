@@ -5,7 +5,7 @@ class CustomerCountService:
     
     def get_active_customer_count(self) -> Optional[int]:
         """
-        Lấy số lượng khách hàng đang hoạt động (is_active = 'Y')
+        Lấy số lượng khách hàng đang hoạt động (is_active = "Y")
         Returns:
             Số lượng khách hàng hoặc None nếu có lỗi
         """

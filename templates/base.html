@@ -82,7 +82,6 @@
             }
         }
         
-        // Đóng dropdown khi click bên ngoài
         window.onclick = function(event) {
             if (!event.target.matches('.user-menu-trigger') && !event.target.closest('.user-menu-container')) {
                 const dropdown = document.getElementById('userMenuDropdown');

@@ -16,7 +16,6 @@
 
     <div class="dashboard-content">
         <div class="features-grid {% if is_admin %}features-grid-4{% else %}features-grid-3{% endif %}">
-            {# Quét OCR: ADMIN và EDITOR có thể truy cập, VIEWER chỉ xem (mờ) #}
             {% set can_access_ocr = user_role == 'ADMIN' or user_role == 'EDITOR' %}
             {% set show_ocr_disabled = user_role == 'VIEWER' %}
             
@@ -39,7 +38,6 @@
             </div>
             {% endif %}
 
-            {# Tra cứu thông tin khách hàng: Tất cả đều có thể truy cập #}
             <a href="{{ url_for('customer_search') }}" style="text-decoration: none; color: inherit;">
                 <div class="feature-card" style="--card-color: #f093fb; --card-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                     <div class="card-icon">🔍</div>
@@ -64,7 +62,6 @@
             </a>
             {% endif %}
 
-            {# Báo cáo Dashboard: Tất cả đều có thể truy cập #}
             <a href="{{ url_for('dashboard_report') }}" style="text-decoration: none; color: inherit;">
                 <div class="feature-card" style="--card-color: #4facfe; --card-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                     <div class="card-icon">📊</div>

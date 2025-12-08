@@ -17,12 +17,12 @@ class ServiceExtractor:
         container_status = None
         container_type = "GP"
         
-        if 'phụ thu phí nâng' in option_lower:
+        if "phụ thu phí nâng" in option_lower:
             print(f"[ServiceExtractor] Found 'phụ thu phí nâng' in option: '{option}'")
             
-            arrow_pattern = re.search(r'(\d+)\s*->\s*(\d+)\s*ngày', option_lower)
-            lon_hon_pattern = re.search(r'lớn\s+hơn\s+(\d+)\s*ngày', option_lower)
-            so_ngay_pattern = re.search(r'(\d+)\s*ngày', option_lower)
+            arrow_pattern = re.search(r"(\d+)\s*->\s*(\d+)\s*ngày", option_lower)
+            lon_hon_pattern = re.search(r"lớn\s+hơn\s+(\d+)\s*ngày", option_lower)
+            so_ngay_pattern = re.search(r"(\d+)\s*ngày", option_lower)
             
             if arrow_pattern:
                 service_name = f"Phụ thu phí nâng {arrow_pattern.group(1)}->{arrow_pattern.group(2)} ngày"
@@ -37,8 +37,8 @@ class ServiceExtractor:
                 print(f"[ServiceExtractor] Could not find service_name for 'phụ thu phí nâng', option: '{option}'")
             
             size_patterns = [
-                r'\b(20|40|45)\s+(?:lạnh\s+)?(?:hàng|rỗng)',
-                r'\b(20|40|45)\b',
+                r"\b(20|40|45)\s+(?:lạnh\s+)?(?:hàng|rỗng)",
+                r"\b(20|40|45)\b",
             ]
             
             for pattern in size_patterns:
@@ -48,29 +48,29 @@ class ServiceExtractor:
                     print(f"[ServiceExtractor] Container size: {container_size}")
                     break
             
-            if 'lạnh' in option_lower:
+            if "lạnh" in option_lower:
                 container_type = "HC"
                 print(f"[ServiceExtractor] Container type: HC (refrigerated)")
             
-            if 'rỗng' in option_lower:
+            if "rỗng" in option_lower:
                 container_status = "E"
                 print(f"[ServiceExtractor] Container status: E (empty)")
-            elif 'hàng' in option_lower:
+            elif "hàng" in option_lower:
                 container_status = "F"
                 print(f"[ServiceExtractor] Container status: F (full)")
         
-        elif 'giao cont' in option_lower:
+        elif "giao cont" in option_lower:
             print(f"[ServiceExtractor] Found 'giao cont' in option")
-            if 'hàng' in option_lower:
+            if "hàng" in option_lower:
                 service_name = "Giao cont hàng"
                 container_status = "F"
-            elif 'rỗng' in option_lower:
+            elif "rỗng" in option_lower:
                 service_name = "Giao cont rỗng"
                 container_status = "E"
             
             size_patterns = [
-                r'\b(20|40|45)\s+lạnh',
-                r'\b(20|40|45)\b',
+                r"\b(20|40|45)\s+lạnh",
+                r"\b(20|40|45)\b",
             ]
             
             for pattern in size_patterns:
@@ -79,7 +79,7 @@ class ServiceExtractor:
                     container_size = match.group(1)
                     break
             
-            if 'lạnh' in option_lower:
+            if "lạnh" in option_lower:
                 container_type = "HC"
         
         if not service_name or not container_size or not container_status:

@@ -55,7 +55,10 @@ class LineManager:
             )
             
             if not container_key:
-                print(f"[LineManager] Could not find container_key for ({service_info['container_size']}, {service_info['container_status']}, {service_info['container_type']})")
+                size = service_info["container_size"]
+                status = service_info["container_status"]
+                ctype = service_info["container_type"]
+                print(f"[LineManager] Could not find container_key for ({size}, {status}, {ctype})")
                 continue
             
             service_key = self.line_service.get_service_key(
@@ -95,7 +98,7 @@ class LineManager:
             
             if success:
                 saved_count += 1
-                print(f"[LineManager] Saved line successfully: container_number={container_number}")
+                print(f'[LineManager] Saved line successfully: container_number={container_number}')
             else:
                 print(f"[LineManager] Failed to save line: container_number={container_number}")
         

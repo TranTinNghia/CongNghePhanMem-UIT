@@ -2,15 +2,11 @@ import os
 import uuid
 import traceback
 from functools import wraps
-
 import bcrypt
-try:
-    import pymssql
-    USE_PYMSSQL = True
-except ImportError:
-    import pyodbc
-    USE_PYMSSQL = False
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash, Response
+import csv
+import io
+from datetime import datetime
 from utils.ocr_processor import OCRProcessor
 from features.ocr.managers.customers import CustomerManager
 from features.ocr.managers.containers import ContainerManager
@@ -28,8 +24,7 @@ from features.user_management.department_service import DepartmentService
 from features.dashboard_report.report_service import DashboardReportService
 
 app = Flask(__name__)
-# Sử dụng environment variable cho secret key, fallback về random key nếu không có
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24).hex())
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -216,7 +211,7 @@ def register():
             flash("Mật khẩu phải có ít nhất 1 chữ số!", "error")
             return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
         
-        special_chars = "!@#$%^&*()_+-=[]{};:\"'\\|,.<>/?"
+        special_chars = "!@#$%^&*()_+-=[]{};:\"\"\\|,.<>/?"
         if not any(c in special_chars for c in password):
             flash("Mật khẩu phải có ít nhất 1 ký tự đặc biệt!", "error")
             return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
@@ -273,16 +268,12 @@ def register():
                 conn.close()
                 return redirect(url_for("login"))
             except Exception as ie:
-                # Xử lý cả pymssql và pyodbc IntegrityError
                 error_type = type(ie).__name__
                 error_msg_lower = str(ie).lower()
                 
-                # Kiểm tra nếu là IntegrityError (cả pymssql và pyodbc đều có)
-                if error_type == 'IntegrityError' or 'duplicate' in error_msg_lower or 'unique constraint' in error_msg_lower or 'primary key' in error_msg_lower:
-                    # Đây là IntegrityError, xử lý như cũ
+                if error_type == "IntegrityError" or "duplicate" in error_msg_lower or "unique constraint" in error_msg_lower or "primary key" in error_msg_lower:
                     pass
                 else:
-                    # Không phải IntegrityError, raise lại
                     raise
                 conn.rollback()
                 conn.close()
@@ -324,8 +315,7 @@ def home():
     is_admin = user_service.is_admin(username) if username else False
     user_role = session.get("role") or "N/A"
     
-    # Lấy họ tên đầy đủ từ database
-    full_name = username  # Mặc định là username nếu không tìm thấy
+    full_name = username
     if username:
         try:
             conn = get_db_connection()
@@ -342,7 +332,6 @@ def home():
                     first_name = user_info[0] if user_info[0] else ""
                     middle_name = user_info[1] if user_info[1] else ""
                     last_name = user_info[2] if user_info[2] else ""
-                    # Ghép họ tên đầy đủ
                     name_parts = [part for part in [first_name, middle_name, last_name] if part]
                     full_name = " ".join(name_parts) if name_parts else username
         except Exception as e:
@@ -434,7 +423,7 @@ def reset_password():
             flash("Mật khẩu phải có ít nhất 1 chữ số!", "error")
             return render_template("reset-password.html", username=username)
         
-        special_chars = "!@#$%^&*()_+-=[]{};:\"'\\|,.<>/?"
+        special_chars = "!@#$%^&*()_+-=[]{};:\"\"\\|,.<>/?"
         if not any(c in special_chars for c in password):
             flash("Mật khẩu phải có ít nhất 1 ký tự đặc biệt!", "error")
             return render_template("reset-password.html", username=username)
@@ -648,7 +637,7 @@ def account_settings():
                                          departments=departments,
                                          is_admin=is_admin)
                 
-                special_chars = "!@#$%^&*()_+-=[]{};:\"'\\|,.<>/?"
+                special_chars = "!@#$%^&*()_+-=[]{};:\"\"\\|,.<>/?"
                 if not any(c in special_chars for c in new_password):
                     conn.rollback()
                     conn.close()
@@ -772,8 +761,9 @@ def account_settings():
             
             if update_fields:
                 update_values.append(username)
+                update_str = ", ".join(update_fields)
                 cursor.execute(
-                    f"UPDATE dbo.users SET {', '.join(update_fields)} WHERE user_name = ?",
+                    f"UPDATE dbo.users SET {update_str} WHERE user_name = ?",
                     tuple(update_values)
                 )
                 conn.commit()
@@ -887,6 +877,88 @@ def search_customer():
         print(f"[search_customer] Error: {e}")
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
+@app.route("/api/customer/export-csv", methods=["POST"])
+@login_required
+def export_customer_csv():
+    try:
+        data = request.get_json()
+        tax_code = data.get("tax_code", "").strip()
+        
+        if not tax_code:
+            return jsonify({"success": False, "error": "Vui lòng nhập mã số thuế"}), 400
+        
+        if not tax_code.isdigit():
+            return jsonify({"success": False, "error": "Mã số thuế phải là toàn các chữ số"}), 400
+        
+        if len(tax_code) > 11:
+            return jsonify({"success": False, "error": "Mã số thuế không được vượt quá 11 ký tự"}), 400
+        
+        search_service = CustomerSearchService()
+        result = search_service.search_by_tax_code(tax_code)
+        
+        if not result:
+            return jsonify({"success": False, "error": "Không tìm thấy khách hàng với mã số thuế này"}), 404
+        
+        # Tạo CSV trong memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Ghi BOM UTF-8 để Excel hiển thị đúng tiếng Việt
+        output.write('\ufeff')
+        
+        # Bảng 1: Thông tin khách hàng (pivot thành dạng bảng)
+        header = ['Mã số thuế', 'Tên doanh nghiệp', 'Địa chỉ', 'Tỉnh thành sau sáp nhập']
+        writer.writerow(header)
+        
+        data_row = [
+            tax_code,
+            result.get('customer_name', ''),
+            result.get('address', ''),
+            result.get('new_province', '')
+        ]
+        writer.writerow(data_row)
+        
+        # Dòng trống để phân cách 2 bảng
+        writer.writerow([])
+        
+        # Bảng 2: Doanh thu và số lượng container theo tháng (giữ nguyên format)
+        monthly_revenue = result.get('monthly_revenue', {})
+        if monthly_revenue:
+            revenue_data = monthly_revenue.get('revenue', {})
+            container_data = monthly_revenue.get('container_count', {})
+            
+            # Lấy tất cả các tháng và sắp xếp
+            all_months = set(list(revenue_data.keys()) + list(container_data.keys()))
+            months = sorted(all_months, key=lambda x: (int(x.split('/')[1]), int(x.split('/')[0])))
+            
+            if months:
+                writer.writerow(['Tháng', 'Doanh thu', 'Số lượng container'])
+                for month in months:
+                    revenue = revenue_data.get(month, 0)
+                    container_count = container_data.get(month, 0)
+                    writer.writerow([month, revenue, container_count])
+        
+        # Lấy dữ liệu từ StringIO
+        output.seek(0)
+        csv_data = output.getvalue()
+        output.close()
+        
+        # Tạo response với CSV
+        response = Response(
+            csv_data.encode('utf-8-sig'),
+            mimetype='text/csv; charset=utf-8',
+            headers={
+                'Content-Disposition': f'attachment; filename=khach_hang_{tax_code}_{datetime.now().strftime("%Y%m%d")}.csv'
+            }
+        )
+        
+        return response
+        
+    except Exception as e:
+        print(f"[export_customer_csv] Error: {e}")
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "Có lỗi xảy ra khi xuất CSV"}), 500
+
 @app.route("/api/user/assign-role", methods=["POST"])
 @admin_required
 def assign_user_role():
@@ -937,7 +1009,7 @@ def update_user_info():
             role_key = role_service.get_role_key_by_name(role_name)
             print(f"[update_user_info] role_name: {role_name}, role_key: {role_key}")
             if not role_key:
-                return jsonify({"success": False, "error": f"Vai trò '{role_name}' không hợp lệ hoặc không tồn tại trong hệ thống"}), 400
+                return jsonify({"success": False, "error": f"Vai trò \"{role_name}\" không hợp lệ hoặc không tồn tại trong hệ thống"}), 400
             role_success = user_service.assign_role(username, role_key)
             print(f"[update_user_info] assign_role result: {role_success}")
             if not role_success:
@@ -1036,7 +1108,7 @@ def api_customer_container_usage():
         print(f"[api_customer_container_usage] Error: {e}")
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
-@app.route('/api/dashboard/monthly-container-usage', methods=['GET'])
+@app.route("/api/dashboard/monthly-container-usage", methods=["GET"])
 def api_monthly_container_usage():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1045,8 +1117,6 @@ def api_monthly_container_usage():
         customer_keys = [k for k in customer_keys if k] if customer_keys else None
         month_years = [m for m in month_years if m] if month_years else None
         
-        print(f"[api_monthly_container_usage] customer_keys: {customer_keys}, month_years: {month_years}")
-        
         report_service = DashboardReportService()
         data = report_service.get_monthly_container_usage(customer_keys, month_years)
         return jsonify({"success": True, "data": data})
@@ -1054,7 +1124,7 @@ def api_monthly_container_usage():
         print(f"[api_monthly_container_usage] Error: {e}")
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
-@app.route('/api/dashboard/monthly-container-type-usage', methods=['GET'])
+@app.route("/api/dashboard/monthly-container-type-usage", methods=["GET"])
 def api_monthly_container_type_usage():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1062,8 +1132,6 @@ def api_monthly_container_type_usage():
         
         customer_keys = [k for k in customer_keys if k] if customer_keys else None
         month_years = [m for m in month_years if m] if month_years else None
-        
-        print(f"[api_monthly_container_type_usage] customer_keys: {customer_keys}, month_years: {month_years}")
         
         report_service = DashboardReportService()
         data = report_service.get_monthly_container_type_usage(customer_keys, month_years)
@@ -1082,8 +1150,6 @@ def api_customers_by_province():
         customer_keys = [k for k in customer_keys if k] if customer_keys else None
         month_years = [m for m in month_years if m] if month_years else None
         
-        print(f"[api_customers_by_province] customer_keys: {customer_keys}, month_years: {month_years}")
-        
         report_service = DashboardReportService()
         data = report_service.get_customers_by_province(customer_keys, month_years)
         return jsonify({"success": True, "data": data})
@@ -1100,8 +1166,6 @@ def api_revenue_by_province():
         
         customer_keys = [k for k in customer_keys if k] if customer_keys else None
         month_years = [m for m in month_years if m] if month_years else None
-        
-        print(f"[api_revenue_by_province] customer_keys: {customer_keys}, month_years: {month_years}")
         
         report_service = DashboardReportService()
         data = report_service.get_revenue_by_province(customer_keys, month_years)
@@ -1132,15 +1196,15 @@ def ocr():
 @app.route("/ocr/process", methods=["POST"])
 @login_required
 def ocr_process():
-    if 'file' not in request.files:
+    if "file" not in request.files:
         return jsonify({"success": False, "error": "Không có file được tải lên"})
     
-    file = request.files['file']
-    if file.filename == '':
+    file = request.files["file"]
+    if file.filename == "":
         return jsonify({"success": False, "error": "Chưa chọn file"})
     
-    if file and file.filename.endswith('.pdf'):
-        upload_folder = 'uploads'
+    if file and file.filename.endswith(".pdf"):
+        upload_folder = "uploads"
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
         
@@ -1189,14 +1253,14 @@ def ocr_process():
                 count_service = CustomerCountService()
                 customer_count = count_service.get_active_customer_count()
                 if customer_count is not None:
-                    stats['customer_count'] = customer_count
+                    stats["customer_count"] = customer_count
                 
                 doc_count_service = DocumentCountService()
                 document_count = doc_count_service.get_document_count()
                 if document_count is not None:
-                    stats['document_count'] = document_count
+                    stats["document_count"] = document_count
                 
-                result['stats'] = stats
+                result["stats"] = stats
                 return jsonify(result)
             else:
                 return jsonify({"success": False, "error": result.get("error", "Không thể xử lý file PDF")})
@@ -1209,18 +1273,18 @@ def ocr_process():
 @app.route("/ocr/process-multiple", methods=["POST"])
 @login_required
 def ocr_process_multiple():
-    if 'files' not in request.files:
+    if "files" not in request.files:
         return jsonify({"success": False, "error": "Không có file được tải lên"})
     
-    files = request.files.getlist('files')
+    files = request.files.getlist("files")
     if not files or len(files) == 0:
         return jsonify({"success": False, "error": "Chưa chọn file"})
     
-    pdf_files = [f for f in files if f.filename and f.filename.endswith('.pdf')]
+    pdf_files = [f for f in files if f.filename and f.filename.endswith(".pdf")]
     if len(pdf_files) == 0:
         return jsonify({"success": False, "error": "Không có file PDF hợp lệ"})
     
-    upload_folder = 'uploads'
+    upload_folder = "uploads"
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     
@@ -1271,7 +1335,8 @@ def ocr_process_multiple():
                 
                 results.append(data)
             else:
-                errors.append(f"{filename}: {result.get('error', 'Lỗi không xác định')}")
+                error_msg = result.get("error", "Lỗi không xác định")
+                errors.append(f"{filename}: {error_msg}")
         except Exception as e:
             print(f"Lỗi khi xử lý OCR cho file {filename}: {e}")
             errors.append(f"{filename}: {str(e)}")
@@ -1280,12 +1345,12 @@ def ocr_process_multiple():
     count_service = CustomerCountService()
     customer_count = count_service.get_active_customer_count()
     if customer_count is not None:
-        stats['customer_count'] = customer_count
+        stats["customer_count"] = customer_count
     
     doc_count_service = DocumentCountService()
     document_count = doc_count_service.get_document_count()
     if document_count is not None:
-        stats['document_count'] = document_count
+        stats["document_count"] = document_count
     
     if len(results) == 0:
         return jsonify({

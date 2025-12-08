@@ -35,7 +35,12 @@
 
         <div id="resultSection" class="result-section" style="display: none;">
             <div class="result-card">
-                <h2 class="result-title">Thông tin khách hàng</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="result-title" style="margin: 0;">Thông tin khách hàng</h2>
+                    <button id="exportCsvBtn" class="export-button" style="display: none;">
+                        <span class="export-icon">📥</span> Xuất CSV
+                    </button>
+                </div>
                 <div class="result-content">
                     <div class="info-row">
                         <span class="info-label">Tên doanh nghiệp:</span>
@@ -77,6 +82,8 @@
     const searchBtn = document.getElementById('searchBtn');
     const errorMessage = document.getElementById('errorMessage');
     const resultSection = document.getElementById('resultSection');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    let currentCustomerData = null;
 
     taxCodeInput.addEventListener('input', function(e) {
         let value = e.target.value.replace(/\D/g, '');
@@ -98,6 +105,7 @@
     });
 
     searchBtn.addEventListener('click', performSearch);
+    exportCsvBtn.addEventListener('click', exportToCsv);
 
     function validateTaxCode(taxCode) {
         if (!taxCode || taxCode.trim() === '') {
@@ -157,6 +165,7 @@
     }
 
     function displayResult(data) {
+        currentCustomerData = data;
         document.getElementById('customerName').textContent = data.customer_name || '-';
         document.getElementById('customerAddress').textContent = data.address || '-';
         document.getElementById('newProvince').textContent = data.new_province || '-';
@@ -165,6 +174,7 @@
             displayRevenueTable(data.monthly_revenue);
         }
         
+        exportCsvBtn.style.display = 'inline-block';
         resultSection.style.display = 'block';
         resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -234,6 +244,58 @@
 
     function hideResult() {
         resultSection.style.display = 'none';
+        exportCsvBtn.style.display = 'none';
+        currentCustomerData = null;
+    }
+
+    function exportToCsv() {
+        if (!currentCustomerData) {
+            showError('Không có dữ liệu để xuất');
+            return;
+        }
+
+        const taxCode = taxCodeInput.value.trim();
+        if (!taxCode) {
+            showError('Vui lòng nhập mã số thuế');
+            return;
+        }
+
+        exportCsvBtn.disabled = true;
+        exportCsvBtn.innerHTML = '<span class="export-icon">⏳</span> Đang xuất...';
+
+        fetch('{{ url_for("export_customer_csv") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tax_code: taxCode })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            return response.json().then(data => {
+                throw new Error(data.error || 'Có lỗi xảy ra khi xuất CSV');
+            });
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `khach_hang_${taxCode}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            exportCsvBtn.disabled = false;
+            exportCsvBtn.innerHTML = '<span class="export-icon">📥</span> Xuất CSV';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError(error.message || 'Có lỗi xảy ra khi xuất CSV. Vui lòng thử lại.');
+            exportCsvBtn.disabled = false;
+            exportCsvBtn.innerHTML = '<span class="export-icon">📥</span> Xuất CSV';
+        });
     }
 </script>
 {% endblock %}

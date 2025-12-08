@@ -90,7 +90,6 @@
         const lastNameInput = row.querySelector('input[data-field="last_name"]');
         const departmentSelect = row.querySelector('.department-select');
         
-        // Lưu giá trị ban đầu, nếu role đã được selected thì lấy role_name từ option được selected
         const selectedRoleOption = roleSelect.options[roleSelect.selectedIndex];
         const initialRole = selectedRoleOption ? selectedRoleOption.value : '';
         
@@ -101,15 +100,12 @@
             last_name: lastNameInput.value,
             department_key: departmentSelect.value
         };
-        
-        console.log(`[init] User ${username} original values:`, originalValues[username]);
 
         function checkChanges() {
             const saveBtn = row.querySelector('.btn-save');
             const validRoles = ['ADMIN', 'VIEWER', 'EDITOR'];
             const roleChanged = roleSelect.value !== originalValues[username].role;
             
-            // Nếu có thay đổi role, phải chọn một vai trò hợp lệ
             if (roleChanged && (!roleSelect.value || !validRoles.includes(roleSelect.value))) {
                 saveBtn.disabled = true;
                 saveBtn.classList.remove('btn-active');
@@ -154,7 +150,6 @@
         const lastName = lastNameInput.value.trim();
         const departmentKey = departmentSelect.value.trim();
 
-        // Validation: Nếu có thay đổi role, phải chọn một vai trò hợp lệ
         const validRoles = ['ADMIN', 'VIEWER', 'EDITOR'];
         const roleChanged = roleName !== originalValues[username].role;
         
@@ -177,8 +172,6 @@
         if (roleName && validRoles.includes(roleName)) {
             updateData.role_name = roleName;
         }
-
-        console.log('[saveUserInfo] Sending update request:', updateData);
         
         fetch('/api/user/update-info', {
             method: 'POST',
@@ -188,14 +181,12 @@
             body: JSON.stringify(updateData)
         })
         .then(response => {
-            console.log('[saveUserInfo] Response status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('[saveUserInfo] Response data:', data);
             if (data.success) {
                 showMessage(`Đã cập nhật thông tin cho ${username} thành công`, 'success');
                 originalValues[username] = {
@@ -228,14 +219,12 @@
                 }
             } else {
                 const errorMsg = data.error || 'Có lỗi xảy ra';
-                console.error('[saveUserInfo] Error from server:', errorMsg);
                 showMessage(errorMsg, 'error');
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Lưu';
             }
         })
         .catch(error => {
-            console.error('[saveUserInfo] Fetch error:', error);
             showMessage(`Có lỗi xảy ra khi kết nối đến server: ${error.message}`, 'error');
             saveBtn.disabled = false;
             saveBtn.textContent = 'Lưu';
