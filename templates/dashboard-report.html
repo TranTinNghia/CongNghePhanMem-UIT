@@ -46,6 +46,55 @@
                 </div>
             </div>
         </div>
+        <div class="filter-group">
+            <label>Làm mới dữ liệu:</label>
+            <div class="custom-dropdown" id="refreshDropdown">
+                <div class="dropdown-toggle" onclick="toggleDropdown('refresh')">
+                    <span class="dropdown-text" id="refreshDropdownText">Tắt</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-menu" id="refreshDropdownMenu">
+                    <div class="refresh-option" onclick="selectRefreshInterval('off')">
+                        <span>Tắt</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('5s')">
+                        <span>5 giây</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('10s')">
+                        <span>10 giây</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('30s')">
+                        <span>30 giây</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('60s')">
+                        <span>1 phút</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('5m')">
+                        <span>5 phút</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('15m')">
+                        <span>15 phút</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('30m')">
+                        <span>30 phút</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('45m')">
+                        <span>45 phút</span>
+                    </div>
+                    <div class="refresh-option" onclick="selectRefreshInterval('1h')">
+                        <span>1 giờ</span>
+                    </div>
+                    <div class="refresh-option-divider"></div>
+                    <div class="refresh-custom-option">
+                        <input type="text" id="customRefreshInput" placeholder="VD: 30s, 5m, 1h, 1d" class="refresh-custom-input" onkeypress="if(event.key === 'Enter') setCustomRefreshInterval()">
+                        <button class="refresh-apply-btn" onclick="setCustomRefreshInterval()">Áp dụng</button>
+                    </div>
+                </div>
+            </div>
+            <div class="refresh-status">
+                <span id="refreshStatusText">Tự động: Tắt</span>
+            </div>
+        </div>
     </div>
 
     <div class="report-stats-grid">
@@ -485,20 +534,25 @@ async function loadCustomerMonthlyRevenue() {
                     return dataMap[key] ? dataMap[key].total_revenue : 0;
                 });
                 
-                const color = colors[idx % colors.length];
+                // Chỉ thêm dataset nếu có ít nhất một giá trị > 0
+                const hasData = revenueData.some(value => value > 0);
                 
-                datasets.push({
-                    label: `${customer.customer_name} (${customer.tax_code})`,
-                    data: revenueData,
-                    type: 'bar',
-                    backgroundColor: color.bar,
-                    borderColor: color.line,
-                    borderWidth: 1,
-                    yAxisID: 'y',
-                    customer_key: customer.key,
-                    tax_code: customer.tax_code,
-                    customer_name: customer.customer_name
-                });
+                if (hasData) {
+                    const color = colors[idx % colors.length];
+                    
+                    datasets.push({
+                        label: `${customer.customer_name} (${customer.tax_code})`,
+                        data: revenueData,
+                        type: 'bar',
+                        backgroundColor: color.bar,
+                        borderColor: color.line,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        customer_key: customer.key,
+                        tax_code: customer.tax_code,
+                        customer_name: customer.customer_name
+                    });
+                }
             });
             
             if (revenueContainerChart) {
@@ -596,42 +650,41 @@ async function loadCustomerMonthlyRevenue() {
             
             addChartInteractionListeners(revenueContainerChart, 'revenueContainerChart');
             
-            if (selectedCustomers && colors) {
-                updateChartLegend(selectedCustomers, colors);
-            }
+            // Update legend với datasets đã được filter (chỉ có data > 0)
+            updateChartLegend(datasets);
         }
     } catch (error) {
         console.error('Error loading customer monthly revenue:', error);
     }
 }
 
-function updateChartLegend(customers, colors) {
+function updateChartLegend(datasets) {
     const legendContainer = document.getElementById('revenueChartLegend');
     legendContainer.innerHTML = '';
     
-    customers.forEach((customer, idx) => {
-        const color = colors[idx % colors.length];
+    // Chỉ hiển thị legend cho các datasets có trong chart
+    datasets.forEach((dataset) => {
         const legendItem = document.createElement('div');
         legendItem.className = 'chart-legend-item';
         legendItem.innerHTML = `
-            <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
-            <div class="chart-legend-text">${customer.customer_name} (${customer.tax_code})</div>
+            <div class="chart-legend-color" style="background-color: ${dataset.backgroundColor};"></div>
+            <div class="chart-legend-text">${dataset.label}</div>
         `;
         legendContainer.appendChild(legendItem);
     });
 }
 
-function updateContainerChartLegend(customers, colors) {
+function updateContainerChartLegend(datasets) {
     const legendContainer = document.getElementById('containerChartLegend');
     legendContainer.innerHTML = '';
     
-    customers.forEach((customer, idx) => {
-        const color = colors[idx % colors.length];
+    // Chỉ hiển thị legend cho các datasets có trong chart
+    datasets.forEach((dataset) => {
         const legendItem = document.createElement('div');
         legendItem.className = 'chart-legend-item';
         legendItem.innerHTML = `
-            <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
-            <div class="chart-legend-text">${customer.customer_name} (${customer.tax_code})</div>
+            <div class="chart-legend-color" style="background-color: ${dataset.backgroundColor};"></div>
+            <div class="chart-legend-text">${dataset.label}</div>
         `;
         legendContainer.appendChild(legendItem);
     });
@@ -705,20 +758,25 @@ async function loadCustomerMonthlyContainer() {
                     return dataMap[key] ? dataMap[key].total_containers : 0;
                 });
                 
-                const color = colors[idx % colors.length];
+                // Chỉ thêm dataset nếu có ít nhất một giá trị > 0
+                const hasData = containerData.some(value => value > 0);
                 
-                datasets.push({
-                    label: `${customer.customer_name} (${customer.tax_code})`,
-                    data: containerData,
-                    type: 'bar',
-                    backgroundColor: color.bar,
-                    borderColor: color.line,
-                    borderWidth: 1,
-                    yAxisID: 'y',
-                    customer_key: customer.key,
-                    tax_code: customer.tax_code,
-                    customer_name: customer.customer_name
-                });
+                if (hasData) {
+                    const color = colors[idx % colors.length];
+                    
+                    datasets.push({
+                        label: `${customer.customer_name} (${customer.tax_code})`,
+                        data: containerData,
+                        type: 'bar',
+                        backgroundColor: color.bar,
+                        borderColor: color.line,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        customer_key: customer.key,
+                        tax_code: customer.tax_code,
+                        customer_name: customer.customer_name
+                    });
+                }
             });
             
             if (containerChart) {
@@ -814,9 +872,8 @@ async function loadCustomerMonthlyContainer() {
             
             addChartInteractionListeners(containerChart, 'containerChart');
             
-            if (selectedCustomers && colors) {
-                updateContainerChartLegend(selectedCustomers, colors);
-            }
+            // Update legend với datasets đã được filter (chỉ có data > 0)
+            updateContainerChartLegend(datasets);
         }
     } catch (error) {
         console.error('Error loading customer monthly container:', error);
@@ -875,17 +932,22 @@ async function loadCustomerContainerUsage() {
                     return dataMap[key] || 0;
                 });
                 
-                const color = colors[idx % colors.length];
+                // Chỉ thêm dataset nếu có ít nhất một giá trị > 0
+                const hasData = containerData.some(value => value > 0);
                 
-                datasets.push({
-                    label: `Container ${size}`,
-                    data: containerData,
-                    type: 'bar',
-                    backgroundColor: color.bar,
-                    borderColor: color.line,
-                    borderWidth: 1,
-                    container_size: size
-                });
+                if (hasData) {
+                    const color = colors[idx % colors.length];
+                    
+                    datasets.push({
+                        label: `Container ${size}`,
+                        data: containerData,
+                        type: 'bar',
+                        backgroundColor: color.bar,
+                        borderColor: color.line,
+                        borderWidth: 1,
+                        container_size: size
+                    });
+                }
             });
             
             if (containerUsageChart) {
@@ -970,16 +1032,16 @@ async function loadCustomerContainerUsage() {
             
             addChartInteractionListeners(containerUsageChart, 'containerUsageChart');
             
+            // Update legend với datasets đã được filter (chỉ có data > 0)
             const legendContainer = document.getElementById('containerUsageChartLegend');
             legendContainer.innerHTML = '';
             
-            containerSizes.forEach((size, idx) => {
-                const color = colors[idx % colors.length];
+            datasets.forEach((dataset) => {
                 const legendItem = document.createElement('div');
                 legendItem.className = 'chart-legend-item';
                 legendItem.innerHTML = `
-                    <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
-                    <div class="chart-legend-text">Container ${size}</div>
+                    <div class="chart-legend-color" style="background-color: ${dataset.backgroundColor};"></div>
+                    <div class="chart-legend-text">${dataset.label}</div>
                 `;
                 legendContainer.appendChild(legendItem);
             });
@@ -1047,18 +1109,23 @@ async function loadContainerTypeUsage() {
                     return dataMap[key] || 0;
                 });
                 
-                const color = colors[idx % colors.length];
-                const formattedType = formatContainerType(type);
+                // Chỉ thêm dataset nếu có ít nhất một giá trị > 0
+                const hasData = containerData.some(value => value > 0);
                 
-                datasets.push({
-                    label: `Container ${formattedType}`,
-                    data: containerData,
-                    type: 'bar',
-                    backgroundColor: color.bar,
-                    borderColor: color.line,
-                    borderWidth: 1,
-                    container_type: type
-                });
+                if (hasData) {
+                    const color = colors[idx % colors.length];
+                    const formattedType = formatContainerType(type);
+                    
+                    datasets.push({
+                        label: `Container ${formattedType}`,
+                        data: containerData,
+                        type: 'bar',
+                        backgroundColor: color.bar,
+                        borderColor: color.line,
+                        borderWidth: 1,
+                        container_type: type
+                    });
+                }
             });
             
             if (containerTypeChart) {
@@ -1143,17 +1210,16 @@ async function loadContainerTypeUsage() {
             
             addChartInteractionListeners(containerTypeChart, 'containerTypeChart');
             
+            // Update legend với datasets đã được filter (chỉ có data > 0)
             const legendContainer = document.getElementById('containerTypeChartLegend');
             legendContainer.innerHTML = '';
             
-            containerTypes.forEach((type, idx) => {
-                const color = colors[idx % colors.length];
-                const formattedType = formatContainerType(type);
+            datasets.forEach((dataset) => {
                 const legendItem = document.createElement('div');
                 legendItem.className = 'chart-legend-item';
                 legendItem.innerHTML = `
-                    <div class="chart-legend-color" style="background-color: ${color.bar};"></div>
-                    <div class="chart-legend-text">Container ${formattedType}</div>
+                    <div class="chart-legend-color" style="background-color: ${dataset.backgroundColor};"></div>
+                    <div class="chart-legend-text">${dataset.label}</div>
                 `;
                 legendContainer.appendChild(legendItem);
             });
@@ -1342,6 +1408,167 @@ async function loadRevenueByProvince() {
 }
 
 let isUpdating = false;
+let refreshIntervalId = null;
+let currentRefreshInterval = null;
+
+function parseTimeInput(input) {
+    if (!input || typeof input !== 'string') return null;
+    
+    const trimmed = input.trim().toLowerCase();
+    const match = trimmed.match(/^(\d+)([smhd])$/);
+    
+    if (!match) return null;
+    
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    
+    if (value <= 0) return null;
+    
+    switch (unit) {
+        case 's':
+            return value * 1000;
+        case 'm':
+            return value * 60 * 1000;
+        case 'h':
+            return value * 60 * 60 * 1000;
+        case 'd':
+            return value * 24 * 60 * 60 * 1000;
+        default:
+            return null;
+    }
+}
+
+function formatTimeInterval(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${ms / 1000}s`;
+    if (ms < 3600000) return `${ms / 60000}m`;
+    if (ms < 86400000) return `${ms / 3600000}h`;
+    return `${ms / 86400000}d`;
+}
+
+function selectRefreshInterval(intervalStr) {
+    // Remove active state từ tất cả options trước
+    document.querySelectorAll('.refresh-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    
+    // Đóng dropdown
+    const dropdown = document.getElementById('refreshDropdown');
+    const menu = document.getElementById('refreshDropdownMenu');
+    const toggle = dropdown.querySelector('.dropdown-toggle');
+    toggle.classList.remove('active');
+    menu.classList.remove('show');
+    
+    if (intervalStr === 'off') {
+        stopRefresh();
+        updateRefreshDropdownText('Tắt');
+        // Set "Tắt" option as active
+        document.querySelectorAll('.refresh-option').forEach(option => {
+            const optionText = option.querySelector('span').textContent.trim();
+            if (optionText === 'Tắt') {
+                option.classList.add('active');
+            }
+        });
+        return;
+    }
+    
+    setRefreshInterval(intervalStr);
+    updateRefreshDropdownText(getRefreshIntervalLabel(intervalStr));
+    
+    // Set active state cho option được chọn
+    document.querySelectorAll('.refresh-option').forEach(option => {
+        const optionText = option.querySelector('span').textContent.trim();
+        const expectedText = getRefreshIntervalLabel(intervalStr);
+        if (optionText === expectedText) {
+            option.classList.add('active');
+        }
+    });
+}
+
+function getRefreshIntervalLabel(intervalStr) {
+    const labels = {
+        '5s': '5 giây',
+        '10s': '10 giây',
+        '30s': '30 giây',
+        '60s': '1 phút',
+        '5m': '5 phút',
+        '15m': '15 phút',
+        '30m': '30 phút',
+        '45m': '45 phút',
+        '1h': '1 giờ'
+    };
+    return labels[intervalStr] || intervalStr;
+}
+
+function updateRefreshDropdownText(text) {
+    document.getElementById('refreshDropdownText').textContent = text;
+}
+
+function setRefreshInterval(intervalStr) {
+    const ms = parseTimeInput(intervalStr);
+    if (!ms) {
+        alert('Thời gian không hợp lệ!');
+        return;
+    }
+    
+    stopRefresh();
+    currentRefreshInterval = intervalStr;
+    
+    refreshIntervalId = setInterval(() => {
+        console.log(`Auto-refreshing dashboard (interval: ${intervalStr})...`);
+        loadAllData();
+    }, ms);
+    
+    document.getElementById('refreshStatusText').textContent = `Tự động: ${getRefreshIntervalLabel(intervalStr)}`;
+}
+
+function setCustomRefreshInterval() {
+    const input = document.getElementById('customRefreshInput').value.trim();
+    if (!input) {
+        alert('Vui lòng nhập thời gian refresh!');
+        return;
+    }
+    
+    const ms = parseTimeInput(input);
+    if (!ms) {
+        alert('Thời gian không hợp lệ! Ví dụ: 30s, 5m, 1h, 1d');
+        return;
+    }
+    
+    // Remove active state từ tất cả options
+    document.querySelectorAll('.refresh-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    
+    setRefreshInterval(input);
+    updateRefreshDropdownText(input);
+    document.getElementById('customRefreshInput').value = '';
+    
+    // Đóng dropdown
+    const dropdown = document.getElementById('refreshDropdown');
+    const menu = document.getElementById('refreshDropdownMenu');
+    const toggle = dropdown.querySelector('.dropdown-toggle');
+    toggle.classList.remove('active');
+    menu.classList.remove('show');
+}
+
+function stopRefresh() {
+    if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = null;
+    }
+    currentRefreshInterval = null;
+    document.getElementById('refreshStatusText').textContent = 'Tự động: Tắt';
+    
+    // Set "Tắt" option as active
+    document.querySelectorAll('.refresh-option').forEach(option => {
+        option.classList.remove('active');
+        const optionText = option.querySelector('span').textContent.trim();
+        if (optionText === 'Tắt') {
+            option.classList.add('active');
+        }
+    });
+}
 
 const dashboardChannel = new BroadcastChannel('dashboard-updates');
 
@@ -1351,6 +1578,13 @@ dashboardChannel.onmessage = function(event) {
         loadAllData();
     }
 };
+
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        console.log('Tab became visible, reloading dashboard...');
+        loadAllData();
+    }
+});
 
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.custom-dropdown')) {

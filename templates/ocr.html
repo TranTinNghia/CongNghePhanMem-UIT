@@ -7,10 +7,20 @@
 {% endblock %}
 
 {% block content %}
+{% if test_mode %}
+<div class="test-mode-banner">
+    <div class="test-mode-content">
+        <span class="test-mode-icon">🧪</span>
+        <span class="test-mode-text">Đang ở chế độ TEST</span>
+        <button class="test-mode-close" onclick="exitTestMode()">✕ Thoát</button>
+    </div>
+</div>
+{% endif %}
 <div class="ocr-container">
     <div class="ocr-header">
         <h1>Quét OCR</h1>
         <p class="ocr-subtitle">Tải lên file PDF để trích xuất thông tin</p>
+        {% if not test_mode %}
         <div class="scan-mode-selector">
             <label class="mode-option">
                 <input type="radio" name="scanMode" value="single" checked onchange="switchScanMode('single')">
@@ -21,6 +31,7 @@
                 <span>Quét nhiều file</span>
             </label>
         </div>
+        {% endif %}
     </div>
 
     <div class="ocr-content">
@@ -69,35 +80,69 @@
                 <div id="singleModeInfo" class="info-grid">
                     <div class="info-item">
                         <label>Mã lô hàng:</label>
-                        <div class="info-value" id="lotCode">-</div>
+                        {% if can_edit %}
+                        <input type="text" class="info-input" id="lotCode" />
+                        {% else %}
+                        <div class="info-value" id="lotCodeDisplay">-</div>
+                        {% endif %}
                     </div>
                     <div class="info-item">
                         <label>Mã giao dịch:</label>
-                        <div class="info-value" id="transactionCode">-</div>
+                        {% if can_edit %}
+                        <input type="text" class="info-input" id="transactionCode" />
+                        {% else %}
+                        <div class="info-value" id="transactionCodeDisplay">-</div>
+                        {% endif %}
                     </div>
                     <div class="info-item">
                         <label>Ngày biên nhận:</label>
-                        <div class="info-value" id="receiptDate">-</div>
+                        {% if can_edit %}
+                        <input type="text" class="info-input" id="receiptDate" />
+                        {% else %}
+                        <div class="info-value" id="receiptDateDisplay">-</div>
+                        {% endif %}
                     </div>
                     <div class="info-item">
                         <label>Số hóa đơn:</label>
-                        <div class="info-value" id="invoiceNumber">-</div>
+                        {% if can_edit %}
+                        <input type="text" class="info-input" id="invoiceNumber" />
+                        {% else %}
+                        <div class="info-value" id="invoiceNumberDisplay">-</div>
+                        {% endif %}
                     </div>
                     <div class="info-item">
                         <label>Mã số thuế Khách hàng:</label>
-                        <div class="info-value" id="taxCode">-</div>
+                        {% if can_edit %}
+                        <input type="text" class="info-input" id="taxCode" />
+                        {% else %}
+                        <div class="info-value" id="taxCodeDisplay">-</div>
+                        {% endif %}
                     </div>
                     <div class="info-item">
                         <label>Tên Khách hàng:</label>
-                        <div class="info-value" id="customerName">-</div>
+                        {% if can_edit %}
+                        <input type="text" class="info-input" id="customerName" />
+                        {% else %}
+                        <div class="info-value" id="customerNameDisplay">-</div>
+                        {% endif %}
                     </div>
                     <div class="info-item full-width">
                         <label>Địa chỉ Khách hàng:</label>
-                        <div class="info-value" id="customerAddress">-</div>
+                        {% if can_edit %}
+                        <textarea class="info-input" id="customerAddress" rows="2"></textarea>
+                        {% else %}
+                        <div class="info-value" id="customerAddressDisplay">-</div>
+                        {% endif %}
                     </div>
                 </div>
+                {% if can_edit %}
+                <div class="action-buttons" id="singleModeActions" style="display: none; margin-top: 20px; gap: 10px;">
+                    <button class="btn-confirm" onclick="confirmSaveSingle()">Xác nhận</button>
+                    <button class="btn-reset" onclick="resetToOriginalSingle()">Trả lại thông tin cũ</button>
+                </div>
+                {% endif %}
                 <div id="multipleModeInfo" class="info-table-container" style="display: none;">
-                    <table class="info-table">
+                    <table class="info-table" id="multipleModeTable">
                         <thead>
                             <tr>
                                 <th>Mã lô hàng</th>
@@ -113,6 +158,12 @@
                         </tbody>
                     </table>
                 </div>
+                {% if can_edit %}
+                <div class="action-buttons" id="multipleModeActions" style="display: none; margin-top: 20px; gap: 10px;">
+                    <button class="btn-confirm" onclick="confirmSaveMultiple()">Xác nhận</button>
+                    <button class="btn-reset" onclick="resetToOriginalMultiple()">Trả lại thông tin cũ</button>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -139,13 +190,19 @@
     </div>
 </div>
 
+<div id="appConfig" data-can-edit="{% if can_edit %}true{% else %}false{% endif %}" data-test-mode="{% if test_mode %}true{% else %}false{% endif %}" data-test-case="{% if test_case %}{{ test_case }}{% else %}{% endif %}" style="display: none;"></div>
 <script>
+const canEdit = document.getElementById('appConfig').getAttribute('data-can-edit') === 'true';
+const testMode = document.getElementById('appConfig').getAttribute('data-test-mode') === 'true';
+const testCase = document.getElementById('appConfig').getAttribute('data-test-case');
 let selectedFile = null;
 let selectedFiles = [];
 let scanMode = 'single';
 
 let singleModeResults = null;
+let singleModeOriginal = null;
 let multipleModeResults = null;
+let multipleModeOriginal = null;
 
 function switchScanMode(mode) {
     if (scanMode === 'single' && singleModeResults) {
@@ -163,15 +220,28 @@ function switchScanMode(mode) {
         if (singleModeResults) {
             restoreSingleResults(singleModeResults);
         } else {
-            document.getElementById('lotCode').textContent = '-';
-            document.getElementById('transactionCode').textContent = '-';
-            document.getElementById('receiptDate').textContent = '-';
-            document.getElementById('invoiceNumber').textContent = '-';
-            document.getElementById('taxCode').textContent = '-';
-            document.getElementById('customerName').textContent = '-';
-            document.getElementById('customerAddress').textContent = '-';
+            if (canEdit) {
+                document.getElementById('lotCode').value = '';
+                document.getElementById('transactionCode').value = '';
+                document.getElementById('receiptDate').value = '';
+                document.getElementById('invoiceNumber').value = '';
+                document.getElementById('taxCode').value = '';
+                document.getElementById('customerName').value = '';
+                document.getElementById('customerAddress').value = '';
+            } else {
+                document.getElementById('lotCodeDisplay').textContent = '-';
+                document.getElementById('transactionCodeDisplay').textContent = '-';
+                document.getElementById('receiptDateDisplay').textContent = '-';
+                document.getElementById('invoiceNumberDisplay').textContent = '-';
+                document.getElementById('taxCodeDisplay').textContent = '-';
+                document.getElementById('customerNameDisplay').textContent = '-';
+                document.getElementById('customerAddressDisplay').textContent = '-';
+            }
             document.getElementById('tableBody').innerHTML = '';
             document.getElementById('tableSection').style.display = 'none';
+            if (canEdit) {
+                document.getElementById('singleModeActions').style.display = 'none';
+            }
         }
         
         if (selectedFile) {
@@ -388,22 +458,45 @@ function processOCR() {
 }
 
 function displayResults(data) {
-    singleModeResults = data;
+    singleModeResults = JSON.parse(JSON.stringify(data));
+    singleModeOriginal = JSON.parse(JSON.stringify(data));
     
-    document.getElementById('lotCode').textContent = data.lot_code || '-';
-    document.getElementById('transactionCode').textContent = data.transaction_code || '-';
-    document.getElementById('receiptDate').textContent = data.receipt_date || '-';
-    document.getElementById('invoiceNumber').textContent = data.invoice_number || '-';
-    document.getElementById('taxCode').textContent = data.tax_code || '-';
-    document.getElementById('customerName').textContent = data.customer_name || '-';
-    document.getElementById('customerAddress').textContent = data.customer_address || '-';
+    if (canEdit) {
+        document.getElementById('lotCode').value = data.lot_code || '';
+        document.getElementById('transactionCode').value = data.transaction_code || '';
+        document.getElementById('receiptDate').value = data.receipt_date || '';
+        document.getElementById('invoiceNumber').value = data.invoice_number || '';
+        document.getElementById('taxCode').value = data.tax_code || '';
+        document.getElementById('customerName').value = data.customer_name || '';
+        document.getElementById('customerAddress').value = data.customer_address || '';
+        document.getElementById('singleModeActions').style.display = 'flex';
+    } else {
+        document.getElementById('lotCodeDisplay').textContent = data.lot_code || '-';
+        document.getElementById('transactionCodeDisplay').textContent = data.transaction_code || '-';
+        document.getElementById('receiptDateDisplay').textContent = data.receipt_date || '-';
+        document.getElementById('invoiceNumberDisplay').textContent = data.invoice_number || '-';
+        document.getElementById('taxCodeDisplay').textContent = data.tax_code || '-';
+        document.getElementById('customerNameDisplay').textContent = data.customer_name || '-';
+        document.getElementById('customerAddressDisplay').textContent = data.customer_address || '-';
+    }
 
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
     
     if (data.items && data.items.length > 0) {
-        data.items.forEach(item => {
+        data.items.forEach((item, index) => {
             const row = document.createElement('tr');
+            if (canEdit) {
+                row.innerHTML = `
+                    <td><input type="text" class="table-input" data-field="container_number" data-index="${index}" value="${item.container_number || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="option" data-index="${index}" value="${item.option || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="quantity" data-index="${index}" value="${item.quantity || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="unit_price" data-index="${index}" value="${item.unit_price || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="tax" data-index="${index}" value="${item.tax || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="discount" data-index="${index}" value="${item.discount || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="amount" data-index="${index}" value="${item.amount || ''}" /></td>
+                `;
+            } else {
             row.innerHTML = `
                 <td>${item.container_number || '-'}</td>
                 <td>${item.option || '-'}</td>
@@ -413,6 +506,7 @@ function displayResults(data) {
                 <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
                 <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
             `;
+            }
             tableBody.appendChild(row);
         });
         document.getElementById('tableSection').style.display = 'block';
@@ -422,20 +516,41 @@ function displayResults(data) {
 }
 
 function restoreSingleResults(data) {
-    document.getElementById('lotCode').textContent = data.lot_code || '-';
-    document.getElementById('transactionCode').textContent = data.transaction_code || '-';
-    document.getElementById('receiptDate').textContent = data.receipt_date || '-';
-    document.getElementById('invoiceNumber').textContent = data.invoice_number || '-';
-    document.getElementById('taxCode').textContent = data.tax_code || '-';
-    document.getElementById('customerName').textContent = data.customer_name || '-';
-    document.getElementById('customerAddress').textContent = data.customer_address || '-';
+    if (canEdit) {
+        document.getElementById('lotCode').value = data.lot_code || '';
+        document.getElementById('transactionCode').value = data.transaction_code || '';
+        document.getElementById('receiptDate').value = data.receipt_date || '';
+        document.getElementById('invoiceNumber').value = data.invoice_number || '';
+        document.getElementById('taxCode').value = data.tax_code || '';
+        document.getElementById('customerName').value = data.customer_name || '';
+        document.getElementById('customerAddress').value = data.customer_address || '';
+    } else {
+        document.getElementById('lotCodeDisplay').textContent = data.lot_code || '-';
+        document.getElementById('transactionCodeDisplay').textContent = data.transaction_code || '-';
+        document.getElementById('receiptDateDisplay').textContent = data.receipt_date || '-';
+        document.getElementById('invoiceNumberDisplay').textContent = data.invoice_number || '-';
+        document.getElementById('taxCodeDisplay').textContent = data.tax_code || '-';
+        document.getElementById('customerNameDisplay').textContent = data.customer_name || '-';
+        document.getElementById('customerAddressDisplay').textContent = data.customer_address || '-';
+    }
 
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
     
     if (data.items && data.items.length > 0) {
-        data.items.forEach(item => {
+        data.items.forEach((item, index) => {
             const row = document.createElement('tr');
+            if (canEdit) {
+                row.innerHTML = `
+                    <td><input type="text" class="table-input" data-field="container_number" data-index="${index}" value="${item.container_number || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="option" data-index="${index}" value="${item.option || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="quantity" data-index="${index}" value="${item.quantity || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="unit_price" data-index="${index}" value="${item.unit_price || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="tax" data-index="${index}" value="${item.tax || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="discount" data-index="${index}" value="${item.discount || ''}" /></td>
+                    <td><input type="text" class="table-input" data-field="amount" data-index="${index}" value="${item.amount || ''}" /></td>
+                `;
+            } else {
             row.innerHTML = `
                 <td>${item.container_number || '-'}</td>
                 <td>${item.option || '-'}</td>
@@ -445,6 +560,7 @@ function restoreSingleResults(data) {
                 <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
                 <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
             `;
+            }
             tableBody.appendChild(row);
         });
         document.getElementById('tableSection').style.display = 'block';
@@ -454,7 +570,8 @@ function restoreSingleResults(data) {
 }
 
 function displayMultipleResults(results) {
-    multipleModeResults = results;
+    multipleModeResults = JSON.parse(JSON.stringify(results));
+    multipleModeOriginal = JSON.parse(JSON.stringify(results));
     
     const infoTableBody = document.getElementById('infoTableBody');
     infoTableBody.innerHTML = '';
@@ -462,8 +579,19 @@ function displayMultipleResults(results) {
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
     
-    results.forEach(result => {
+    results.forEach((result, resultIndex) => {
         const infoRow = document.createElement('tr');
+        if (canEdit) {
+            infoRow.innerHTML = `
+                <td><input type="text" class="table-input" data-field="lot_code" data-result-index="${resultIndex}" value="${result.lot_code || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="transaction_code" data-result-index="${resultIndex}" value="${result.transaction_code || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="receipt_date" data-result-index="${resultIndex}" value="${result.receipt_date || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="invoice_number" data-result-index="${resultIndex}" value="${result.invoice_number || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="tax_code" data-result-index="${resultIndex}" value="${result.tax_code || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="customer_name" data-result-index="${resultIndex}" value="${result.customer_name || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="customer_address" data-result-index="${resultIndex}" value="${result.customer_address || ''}" /></td>
+            `;
+        } else {
         infoRow.innerHTML = `
             <td>${result.lot_code || '-'}</td>
             <td>${result.transaction_code || '-'}</td>
@@ -473,11 +601,23 @@ function displayMultipleResults(results) {
             <td>${result.customer_name || '-'}</td>
             <td>${result.customer_address || '-'}</td>
         `;
+        }
         infoTableBody.appendChild(infoRow);
         
         if (result.items && result.items.length > 0) {
-            result.items.forEach(item => {
+            result.items.forEach((item, itemIndex) => {
                 const row = document.createElement('tr');
+                if (canEdit) {
+                    row.innerHTML = `
+                        <td><input type="text" class="table-input" data-field="container_number" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.container_number || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="option" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.option || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="quantity" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.quantity || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="unit_price" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.unit_price || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="tax" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.tax || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="discount" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.discount || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="amount" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.amount || ''}" /></td>
+                    `;
+                } else {
                 row.innerHTML = `
                     <td>${item.container_number || '-'}</td>
                     <td>${item.option || '-'}</td>
@@ -487,6 +627,7 @@ function displayMultipleResults(results) {
                     <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
                     <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
                 `;
+                }
                 tableBody.appendChild(row);
             });
         }
@@ -494,6 +635,9 @@ function displayMultipleResults(results) {
     
     if (results.length > 0) {
         document.getElementById('tableSection').style.display = 'block';
+        if (canEdit) {
+            document.getElementById('multipleModeActions').style.display = 'flex';
+        }
     }
 }
 
@@ -504,8 +648,19 @@ function restoreMultipleResults(results) {
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
     
-    results.forEach(result => {
+    results.forEach((result, resultIndex) => {
         const infoRow = document.createElement('tr');
+        if (canEdit) {
+            infoRow.innerHTML = `
+                <td><input type="text" class="table-input" data-field="lot_code" data-result-index="${resultIndex}" value="${result.lot_code || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="transaction_code" data-result-index="${resultIndex}" value="${result.transaction_code || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="receipt_date" data-result-index="${resultIndex}" value="${result.receipt_date || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="invoice_number" data-result-index="${resultIndex}" value="${result.invoice_number || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="tax_code" data-result-index="${resultIndex}" value="${result.tax_code || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="customer_name" data-result-index="${resultIndex}" value="${result.customer_name || ''}" /></td>
+                <td><input type="text" class="table-input" data-field="customer_address" data-result-index="${resultIndex}" value="${result.customer_address || ''}" /></td>
+            `;
+        } else {
         infoRow.innerHTML = `
             <td>${result.lot_code || '-'}</td>
             <td>${result.transaction_code || '-'}</td>
@@ -515,11 +670,23 @@ function restoreMultipleResults(results) {
             <td>${result.customer_name || '-'}</td>
             <td>${result.customer_address || '-'}</td>
         `;
+        }
         infoTableBody.appendChild(infoRow);
         
         if (result.items && result.items.length > 0) {
-            result.items.forEach(item => {
+            result.items.forEach((item, itemIndex) => {
                 const row = document.createElement('tr');
+                if (canEdit) {
+                    row.innerHTML = `
+                        <td><input type="text" class="table-input" data-field="container_number" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.container_number || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="option" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.option || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="quantity" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.quantity || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="unit_price" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.unit_price || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="tax" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.tax || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="discount" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.discount || ''}" /></td>
+                        <td><input type="text" class="table-input" data-field="amount" data-result-index="${resultIndex}" data-item-index="${itemIndex}" value="${item.amount || ''}" /></td>
+                    `;
+                } else {
                 row.innerHTML = `
                     <td>${item.container_number || '-'}</td>
                     <td>${item.option || '-'}</td>
@@ -529,6 +696,7 @@ function restoreMultipleResults(results) {
                     <td>${item.discount ? formatNumber(item.discount) : '-'}</td>
                     <td>${item.amount ? formatNumber(item.amount) : '-'}</td>
                 `;
+                }
                 tableBody.appendChild(row);
             });
         }
@@ -539,8 +707,303 @@ function restoreMultipleResults(results) {
     }
 }
 
+function disableAllInputs() {
+    const allInputs = document.querySelectorAll('#singleModeInfo input, #singleModeInfo textarea, #multipleModeInfo input, #tableBody input');
+    allInputs.forEach(input => {
+        input.disabled = true;
+    });
+    
+    const confirmBtn = document.querySelector('#singleModeActions .btn-confirm');
+    const resetBtn = document.querySelector('#singleModeActions .btn-reset');
+    const confirmBtnMultiple = document.querySelector('#multipleModeActions .btn-confirm');
+    const resetBtnMultiple = document.querySelector('#multipleModeActions .btn-reset');
+    
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Đang lưu...';
+    }
+    if (resetBtn) resetBtn.disabled = true;
+    if (confirmBtnMultiple) {
+        confirmBtnMultiple.disabled = true;
+        confirmBtnMultiple.textContent = 'Đang lưu...';
+    }
+    if (resetBtnMultiple) resetBtnMultiple.disabled = true;
+}
+
+function enableAllInputs() {
+    const allInputs = document.querySelectorAll('#singleModeInfo input, #singleModeInfo textarea, #multipleModeInfo input, #tableBody input');
+    allInputs.forEach(input => {
+        input.disabled = false;
+    });
+    
+    const confirmBtn = document.querySelector('#singleModeActions .btn-confirm');
+    const resetBtn = document.querySelector('#singleModeActions .btn-reset');
+    const confirmBtnMultiple = document.querySelector('#multipleModeActions .btn-confirm');
+    const resetBtnMultiple = document.querySelector('#multipleModeActions .btn-reset');
+    
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Xác nhận';
+    }
+    if (resetBtn) resetBtn.disabled = false;
+    if (confirmBtnMultiple) {
+        confirmBtnMultiple.disabled = false;
+        confirmBtnMultiple.textContent = 'Xác nhận';
+    }
+    if (resetBtnMultiple) resetBtnMultiple.disabled = false;
+}
+
+function confirmSaveSingle() {
+    if (!canEdit) {
+        alert('Bạn không có quyền thực hiện thao tác này');
+        return;
+    }
+    
+    disableAllInputs();
+    
+    const data = {
+        lot_code: document.getElementById('lotCode').value,
+        transaction_code: document.getElementById('transactionCode').value,
+        receipt_date: document.getElementById('receiptDate').value,
+        invoice_number: document.getElementById('invoiceNumber').value,
+        tax_code: document.getElementById('taxCode').value,
+        customer_name: document.getElementById('customerName').value,
+        customer_address: document.getElementById('customerAddress').value,
+        items: []
+    };
+    
+    const tableRows = document.querySelectorAll('#tableBody tr');
+    tableRows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        if (inputs.length >= 7) {
+            data.items.push({
+                container_number: inputs[0].value,
+                option: inputs[1].value,
+                quantity: inputs[2].value,
+                unit_price: inputs[3].value ? parseInt(inputs[3].value.replace(/,/g, '')) : 0,
+                tax: inputs[4].value,
+                discount: inputs[5].value ? parseInt(inputs[5].value.replace(/,/g, '')) : 0,
+                amount: inputs[6].value ? parseInt(inputs[6].value.replace(/,/g, '')) : 0
+            });
+        }
+    });
+    
+    fetch('{{ url_for("ocr_save") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            ...data,
+            use_test_tables: testMode
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(result => {
+                enableAllInputs();
+                if (testMode && testCase === '1') {
+                    const testResult = {
+                        test_name: 'Test Case 1: Quét 1 file PDF',
+                        passed: false,
+                        message: 'FAIL - ' + (result.error || 'Không thể lưu dữ liệu'),
+                        steps: [
+                            { step_name: 'Bước 1: Quét OCR', status: 'success', message: 'Quét OCR thành công' },
+                            { step_name: 'Bước 2: Lưu dữ liệu', status: 'fail', message: result.error || 'Không thể lưu dữ liệu', data: result.errors || [] }
+                        ],
+                        details: {
+                            error: result.error,
+                            errors: result.errors || []
+                        }
+                    };
+                    sessionStorage.setItem('testResult', JSON.stringify(testResult));
+                    window.location.href = '{{ url_for("test_page") }}?test_case=1';
+                } else {
+                    alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
+                }
+            });
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (!result) return;
+        
+        enableAllInputs();
+        if (result.success) {
+            if (testMode && testCase === '1') {
+                const testResult = {
+                    test_name: 'Test Case 1: Quét 1 file PDF',
+                    passed: true,
+                    message: 'PASS - Đã quét và lưu thành công vào test tables',
+                    steps: [
+                        { step_name: 'Bước 1: Quét OCR', status: 'success', message: 'Quét OCR thành công' },
+                        { step_name: 'Bước 2: Lưu Customer', status: 'success', message: 'Đã lưu customer vào test_customers' },
+                        { step_name: 'Bước 3: Lưu Receipt', status: 'success', message: 'Đã lưu receipt vào test_receipts' },
+                        { step_name: 'Bước 4: Lưu Containers', status: 'success', message: 'Đã lưu containers vào test_containers' },
+                        { step_name: 'Bước 5: Lưu Services', status: 'success', message: 'Đã lưu services vào test_services' },
+                        { step_name: 'Bước 6: Lưu Lines', status: 'success', message: 'Đã lưu lines vào test_lines' }
+                    ],
+                    details: {
+                        data_saved: data,
+                        items_count: data.items.length
+                    }
+                };
+                sessionStorage.setItem('testResult', JSON.stringify(testResult));
+                window.location.href = '{{ url_for("test_page") }}?test_case=1';
+            } else {
+                alert('Lưu dữ liệu thành công!');
+                if (result.stats) {
+                    const statsChannel = new BroadcastChannel('dashboard_stats');
+                    statsChannel.postMessage({
+                        type: 'stats_update',
+                        stats: result.stats
+                    });
+                    statsChannel.close();
+                }
+                const dashboardChannel = new BroadcastChannel('dashboard-updates');
+                dashboardChannel.postMessage({ type: 'data-updated' });
+                dashboardChannel.close();
+            }
+        } else {
+            if (testMode && testCase === '1') {
+                const testResult = {
+                    test_name: 'Test Case 1: Quét 1 file PDF',
+                    passed: false,
+                    message: 'FAIL - ' + (result.error || 'Không thể lưu dữ liệu'),
+                    steps: [
+                        { step_name: 'Bước 1: Quét OCR', status: 'success', message: 'Quét OCR thành công' },
+                        { step_name: 'Bước 2: Lưu dữ liệu', status: 'fail', message: result.error || 'Không thể lưu dữ liệu', data: result.errors || [] }
+                    ],
+                    details: {
+                        error: result.error,
+                        errors: result.errors || []
+                    }
+                };
+                sessionStorage.setItem('testResult', JSON.stringify(testResult));
+                window.location.href = '{{ url_for("test_page") }}?test_case=1';
+            } else {
+                alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        enableAllInputs();
+        alert('Có lỗi xảy ra khi lưu dữ liệu');
+    });
+}
+
+function resetToOriginalSingle() {
+    if (!canEdit || !singleModeOriginal) {
+        return;
+    }
+    
+    restoreSingleResults(singleModeOriginal);
+    singleModeResults = JSON.parse(JSON.stringify(singleModeOriginal));
+}
+
+function confirmSaveMultiple() {
+    if (!canEdit) {
+        alert('Bạn không có quyền thực hiện thao tác này');
+        return;
+    }
+    
+    disableAllInputs();
+    
+    const results = [];
+    const infoRows = document.querySelectorAll('#infoTableBody tr');
+    const tableRows = document.querySelectorAll('#tableBody tr');
+    
+    infoRows.forEach((infoRow, resultIndex) => {
+        const inputs = infoRow.querySelectorAll('input');
+        if (inputs.length >= 7) {
+            const result = {
+                lot_code: inputs[0].value,
+                transaction_code: inputs[1].value,
+                receipt_date: inputs[2].value,
+                invoice_number: inputs[3].value,
+                tax_code: inputs[4].value,
+                customer_name: inputs[5].value,
+                customer_address: inputs[6].value,
+                items: []
+            };
+            
+            tableRows.forEach(row => {
+                const rowInputs = row.querySelectorAll('input');
+                if (rowInputs.length >= 7) {
+                    const resultIdx = parseInt(rowInputs[0].getAttribute('data-result-index'));
+                    if (resultIdx === resultIndex) {
+                        result.items.push({
+                            container_number: rowInputs[0].value,
+                            option: rowInputs[1].value,
+                            quantity: rowInputs[2].value,
+                            unit_price: rowInputs[3].value ? parseInt(rowInputs[3].value.replace(/,/g, '')) : 0,
+                            tax: rowInputs[4].value,
+                            discount: rowInputs[5].value ? parseInt(rowInputs[5].value.replace(/,/g, '')) : 0,
+                            amount: rowInputs[6].value ? parseInt(rowInputs[6].value.replace(/,/g, '')) : 0
+                        });
+                    }
+                }
+            });
+            
+            results.push(result);
+        }
+    });
+    
+    fetch('{{ url_for("ocr_save") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            is_multiple: true,
+            data: results
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        enableAllInputs();
+        if (result.success) {
+            alert('Lưu dữ liệu thành công!');
+            if (result.stats) {
+                const statsChannel = new BroadcastChannel('dashboard_stats');
+                statsChannel.postMessage({
+                    type: 'stats_update',
+                    stats: result.stats
+                });
+                statsChannel.close();
+            }
+            const dashboardChannel = new BroadcastChannel('dashboard-updates');
+            dashboardChannel.postMessage({ type: 'data-updated' });
+            dashboardChannel.close();
+        } else {
+            alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        enableAllInputs();
+        alert('Có lỗi xảy ra khi lưu dữ liệu');
+    });
+}
+
+function resetToOriginalMultiple() {
+    if (!canEdit || !multipleModeOriginal) {
+        return;
+    }
+    
+    restoreMultipleResults(multipleModeOriginal);
+    multipleModeResults = JSON.parse(JSON.stringify(multipleModeOriginal));
+}
+
 function formatNumber(num) {
     return new Intl.NumberFormat('vi-VN').format(num);
+}
+
+function exitTestMode() {
+    if (confirm('Bạn có chắc muốn thoát chế độ test?')) {
+        window.location.href = '{{ url_for("test_page") }}';
+    }
 }
 </script>
 {% endblock %}

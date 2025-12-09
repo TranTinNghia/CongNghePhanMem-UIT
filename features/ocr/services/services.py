@@ -2,7 +2,7 @@ from utils.db_helper import get_db_connection
 
 class ServiceService:
     
-    def save_service_scd2(self, service_name: str, container_key: str, from_date: str, to_date: str, unit_price: int, tax_rate: int) -> bool:
+    def save_service_scd2(self, service_name: str, container_key: str, from_date: str, to_date: str, unit_price: int, tax_rate: int, use_test_tables: bool = False) -> bool:
         if not service_name or not container_key or not from_date or not to_date:
             return False
         
@@ -15,8 +15,10 @@ class ServiceService:
             cursor = conn.cursor()
             cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
             
+            table_name = "test_services" if use_test_tables else "services"
+            print(f"[ServiceService] use_test_tables={use_test_tables}, using table: {table_name}, container_key={container_key}")
             cursor.execute(
-                "SELECT service_key, service_name, container_key, from_date, to_date, unit_price, tax_rate FROM dbo.services WHERE service_name = ? AND container_key = ? AND from_date = ? AND to_date = ? AND is_active = N'Y'",
+                f"SELECT service_key, service_name, container_key, from_date, to_date, unit_price, tax_rate FROM dbo.{table_name} WHERE service_name = ? AND container_key = ? AND from_date = ? AND to_date = ? AND is_active = N'Y'",
                 (service_name, container_key, from_date, to_date)
             )
             existing_service = cursor.fetchone()
@@ -63,18 +65,18 @@ class ServiceService:
                 current_timestamp = cursor.fetchone()[0]
                 
                 cursor.execute(
-                    "UPDATE dbo.services SET end_time = ?, is_active = N'N' WHERE service_key = ?",
+                    f"UPDATE dbo.{table_name} SET end_time = ?, is_active = N'N' WHERE service_key = ?",
                     (current_timestamp, old_service_key)
                 )
                 
                 cursor.execute(
-                    """INSERT INTO dbo.services (service_name, container_key, from_date, to_date, unit_price, tax_rate, start_time, end_time, is_active)
+                    f"""INSERT INTO dbo.{table_name} (service_name, container_key, from_date, to_date, unit_price, tax_rate, start_time, end_time, is_active)
                        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, N'Y')""",
                     (service_name, container_key, from_date, to_date, unit_price, tax_rate, current_timestamp)
                 )
             else:
                 cursor.execute(
-                    """INSERT INTO dbo.services (service_name, container_key, from_date, to_date, unit_price, tax_rate, start_time, end_time, is_active)
+                    f"""INSERT INTO dbo.{table_name} (service_name, container_key, from_date, to_date, unit_price, tax_rate, start_time, end_time, is_active)
                        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, N'Y')""",
                     (service_name, container_key, from_date, to_date, unit_price, tax_rate)
                 )

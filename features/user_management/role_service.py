@@ -3,7 +3,7 @@ from utils.db_helper import get_db_connection
 
 class RoleService:
     
-    def get_role_key_by_name(self, role_name: str) -> Optional[str]:
+    def get_role_key_by_name(self, role_name: str, use_test_tables: bool = False) -> Optional[str]:
         if not role_name:
             return None
         
@@ -15,8 +15,9 @@ class RoleService:
         
         try:
             cursor = conn.cursor()
+            table_name = "test_roles" if use_test_tables else "roles"
             cursor.execute(
-                "SELECT role_key FROM dbo.roles WHERE UPPER(role_name) = ?",
+                f"SELECT role_key FROM dbo.{table_name} WHERE UPPER(role_name) = ?",
                 (role_name,)
             )
             result = cursor.fetchone()

@@ -7,7 +7,7 @@ class ContainerManager:
         self.container_extractor = ContainerExtractor()
         self.container_service = ContainerService()
     
-    def process_and_save_containers(self, items: list) -> int:
+    def process_and_save_containers(self, items: list, use_test_tables: bool = False) -> int:
         if not items:
             print(f"[ContainerManager] Skipping: no items")
             return 0
@@ -30,7 +30,8 @@ class ContainerManager:
             success = self.container_service.save_container_scd2(
                 container_size=container_info["container_size"],
                 container_status=container_info["container_status"],
-                container_type=container_info["container_type"]
+                container_type=container_info["container_type"],
+                use_test_tables=use_test_tables
             )
             
             if success:

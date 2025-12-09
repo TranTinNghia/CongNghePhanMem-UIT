@@ -9,12 +9,12 @@ class LineManager:
         self.service_extractor = ServiceExtractor()
         self.container_key_service = ContainerKeyService()
     
-    def process_and_save_lines(self, items: list, receipt_code: str, receipt_date: str) -> int:
+    def process_and_save_lines(self, items: list, receipt_code: str, receipt_date: str, use_test_tables: bool = False) -> int:
         if not items or not receipt_code or not receipt_date:
             print(f"[LineManager] Skipping: missing information")
             return 0
         
-        receipt_key = self.line_service.get_receipt_key_by_code(receipt_code)
+        receipt_key = self.line_service.get_receipt_key_by_code(receipt_code, use_test_tables)
         if not receipt_key:
             print(f"[LineManager] Could not find receipt_key for receipt_code: {receipt_code}")
             return 0
@@ -51,7 +51,8 @@ class LineManager:
             container_key = self.container_key_service.get_container_key(
                 container_size=service_info["container_size"],
                 container_status=service_info["container_status"],
-                container_type=service_info["container_type"]
+                container_type=service_info["container_type"],
+                use_test_tables=use_test_tables
             )
             
             if not container_key:
@@ -65,7 +66,8 @@ class LineManager:
                 service_name=service_info["service_name"],
                 container_key=container_key,
                 from_date=service_info["from_date"],
-                to_date=service_info["to_date"]
+                to_date=service_info["to_date"],
+                use_test_tables=use_test_tables
             )
             
             if not service_key:
@@ -93,7 +95,8 @@ class LineManager:
                 service_key=service_key,
                 quantity=quantity_int,
                 discount=discount_int,
-                amount=amount_int
+                amount=amount_int,
+                use_test_tables=use_test_tables
             )
             
             if success:

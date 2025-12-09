@@ -11,6 +11,7 @@ class DashboardReportService:
         
         try:
             cursor = conn.cursor()
+            # Lấy tổng số khách hàng đang hoạt động (is_active = "Y")
             cursor.execute(
                 "SELECT COUNT(*) FROM dbo.customers WHERE is_active = N'Y'"
             )
@@ -35,6 +36,7 @@ class DashboardReportService:
         
         try:
             cursor = conn.cursor()
+            # Lấy danh sách khách hàng đang hoạt động (is_active = "Y")
             cursor.execute(
                 """SELECT DISTINCT 
                     c.customer_key,
@@ -64,6 +66,7 @@ class DashboardReportService:
             return []
     
     def get_months_list(self) -> List[str]:
+        # Lấy danh sách các tháng từ năm 2024 đến năm hiện tại
         months = []
         start_date = datetime(2024, 1, 1)
         current_date = datetime.now()
@@ -84,6 +87,7 @@ class DashboardReportService:
             return []
         
         try:
+            # Lấy doanh thu hàng tháng của khách hàng đang hoạt động (is_active = "Y")
             where_clauses = ["c.is_active = N'Y'"]
             params = []
             
@@ -144,6 +148,7 @@ class DashboardReportService:
             return []
         
         try:
+            # Lấy số lượng container sử dụng hàng tháng của khách hàng đang hoạt động (is_active = "Y")
             where_clauses = ["c.is_active = N'Y'"]
             params = []
             
@@ -204,6 +209,7 @@ class DashboardReportService:
             return []
         
         try:
+            # Lấy số lượng container theo container type sử dụng hàng tháng của khách hàng đang hoạt động (is_active = "Y")
             where_clauses = ["c.is_active = N'Y'"]
             params = []
             
@@ -262,6 +268,7 @@ class DashboardReportService:
             return []
     
     def get_customer_container_usage(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
+        # Lấy số lượng container theo container type và container size sử dụng hàng tháng của khách hàng đang hoạt động (is_active = "Y")
         conn = get_db_connection()
         if not conn:
             return []
@@ -300,8 +307,7 @@ class DashboardReportService:
                     WHERE {where_sql}
                         AND s.is_active = N'Y'
                         AND cont.is_active = N'Y'
-                    GROUP BY c.tax_code, c.customer_name, FORMAT(r.receipt_date, 'MM/yyyy'), 
-                             cont.container_type, cont.container_size
+                    GROUP BY c.tax_code, c.customer_name, FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_type, cont.container_size
                 ),
                 RankedUsage AS (
                     SELECT 
@@ -357,6 +363,7 @@ class DashboardReportService:
             return []
         
         try:
+            # Lấy số lượng khách hàng đang hoạt động theo từng province (is_active = "Y")
             where_clauses = ["c.is_active = N'Y'"]
             params = []
             
@@ -383,8 +390,7 @@ class DashboardReportService:
                     COUNT(DISTINCT c.customer_key) AS customer_count
                 FROM dbo.customers c
                 INNER JOIN dbo.provinces p ON c.province_key = p.province_key
-                WHERE {where_sql}
-                    AND p.is_active = N'Y'
+                WHERE {where_sql} AND p.is_active = N'Y'
                 GROUP BY p.new_province
                 ORDER BY customer_count DESC""",
                 tuple(params)
@@ -413,6 +419,7 @@ class DashboardReportService:
             return []
         
         try:
+            # Lấy doanh thu hàng tháng của khách hàng đang hoạt động theo từng province (is_active = "Y")
             where_clauses = ["c.is_active = N'Y'"]
             params = []
             
@@ -441,8 +448,7 @@ class DashboardReportService:
                 INNER JOIN dbo.receipts r ON l.receipt_key = r.receipt_key
                 INNER JOIN dbo.customers c ON r.customer_key = c.customer_key
                 INNER JOIN dbo.provinces p ON c.province_key = p.province_key
-                WHERE {where_sql}
-                    AND p.is_active = N'Y'
+                WHERE {where_sql} AND p.is_active = N'Y'
                 GROUP BY p.new_province
                 ORDER BY total_revenue DESC""",
                 tuple(params)

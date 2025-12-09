@@ -4,7 +4,7 @@ from utils.db_helper import get_db_connection
 
 class LineService:
     
-    def get_receipt_key_by_code(self, receipt_code: str) -> Optional[str]:
+    def get_receipt_key_by_code(self, receipt_code: str, use_test_tables: bool = False) -> Optional[str]:
         if not receipt_code:
             return None
         
@@ -16,8 +16,9 @@ class LineService:
         
         try:
             cursor = conn.cursor()
+            table_name = "test_receipts" if use_test_tables else "receipts"
             cursor.execute(
-                "SELECT receipt_key FROM dbo.receipts WHERE receipt_code = ?",
+                f"SELECT receipt_key FROM dbo.{table_name} WHERE receipt_code = ?",
                 (receipt_code,)
             )
             result = cursor.fetchone()
@@ -34,7 +35,7 @@ class LineService:
                 pass
             return None
     
-    def get_service_key(self, service_name: str, container_key: str, from_date: str, to_date: str) -> Optional[str]:
+    def get_service_key(self, service_name: str, container_key: str, from_date: str, to_date: str, use_test_tables: bool = False) -> Optional[str]:
         if not service_name or not container_key or not from_date or not to_date:
             return None
         
@@ -44,8 +45,9 @@ class LineService:
         
         try:
             cursor = conn.cursor()
+            table_name = "test_services" if use_test_tables else "services"
             cursor.execute(
-                "SELECT service_key FROM dbo.services WHERE service_name = ? AND container_key = ? AND from_date = ? AND to_date = ? AND is_active = N'Y'",
+                f"SELECT service_key FROM dbo.{table_name} WHERE service_name = ? AND container_key = ? AND from_date = ? AND to_date = ? AND is_active = N'Y'",
                 (service_name, container_key, from_date, to_date)
             )
             result = cursor.fetchone()
@@ -62,7 +64,7 @@ class LineService:
                 pass
             return None
     
-    def save_line(self, receipt_key: str, container_number: str, service_key: str, quantity: Optional[int], discount: Optional[int], amount: Optional[int]) -> bool:
+    def save_line(self, receipt_key: str, container_number: str, service_key: str, quantity: Optional[int], discount: Optional[int], amount: Optional[int], use_test_tables: bool = False) -> bool:
         if not receipt_key or not container_number or not service_key:
             return False
         
@@ -81,8 +83,10 @@ class LineService:
             cursor = conn.cursor()
             cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
             
+            table_name = "test_lines" if use_test_tables else "lines"
+            print(f"[LineService] use_test_tables={use_test_tables}, using table: {table_name}")
             cursor.execute(
-                "SELECT line_key, receipt_key, container_number, service_key, quantity, discount, amount FROM dbo.lines WHERE receipt_key = ? AND container_number = ?",
+                f"SELECT line_key, receipt_key, container_number, service_key, quantity, discount, amount FROM dbo.{table_name} WHERE receipt_key = ? AND container_number = ?",
                 (receipt_key, container_number)
             )
             existing_line = cursor.fetchone()
@@ -126,14 +130,14 @@ class LineService:
                     return True
                 
                 cursor.execute(
-                    """UPDATE dbo.lines 
+                    f"""UPDATE dbo.{table_name} 
                        SET receipt_key = ?, container_number = ?, service_key = ?, quantity = ?, discount = ?, amount = ?
                        WHERE line_key = ?""",
                     (receipt_key, container_number, service_key, quantity, discount, amount, old_line_key)
                 )
             else:
                 cursor.execute(
-                    """INSERT INTO dbo.lines (receipt_key, container_number, service_key, quantity, discount, amount)
+                    f"""INSERT INTO dbo.{table_name} (receipt_key, container_number, service_key, quantity, discount, amount)
                        VALUES (?, ?, ?, ?, ?, ?)""",
                     (receipt_key, container_number, service_key, quantity, discount, amount)
                 )

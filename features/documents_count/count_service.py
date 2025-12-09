@@ -1,17 +1,30 @@
-import os
 from typing import Optional
+from utils.db_helper import get_db_connection
 
 class DocumentCountService:
     
-    def get_document_count(self, upload_folder: str = "uploads") -> Optional[int]:
+    def get_document_count(self, use_test_tables: bool = False) -> Optional[int]:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
         try:
-            if not os.path.exists(upload_folder):
-                return 0
+            cursor = conn.cursor()
+            table_name = "test_receipts" if use_test_tables else "receipts"
             
-            files = [f for f in os.listdir(upload_folder) if os.path.isfile(os.path.join(upload_folder, f))]
+            # Đếm tổng số receipts trong database
+            cursor.execute(f"SELECT COUNT(*) FROM dbo.{table_name}")
+            result = cursor.fetchone()
+            conn.close()
             
-            return len(files)
+            if result:
+                return result[0]
+            return 0
         except Exception as e:
             print(f"[DocumentCountService] Error counting documents: {e}")
+            try:
+                conn.close()
+            except:
+                pass
             return None
 

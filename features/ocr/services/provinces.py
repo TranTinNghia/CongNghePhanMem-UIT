@@ -3,7 +3,7 @@ from utils.db_helper import get_db_connection
 
 class ProvinceService:
     
-    def get_province_key(self, province_name: str) -> Optional[str]:
+    def get_province_key(self, province_name: str, use_test_tables: bool = False) -> Optional[str]:
         if not province_name:
             return None
         
@@ -15,10 +15,10 @@ class ProvinceService:
             cursor = conn.cursor()
             
             province_name_clean = province_name.strip()
-            print(f"[ProvinceService] Finding province_key for: '{province_name_clean}'")
-            
+            table_name = "test_provinces" if use_test_tables else "provinces"
+            print(f"[ProvinceService] use_test_tables={use_test_tables}, using table: {table_name}, Finding province_key for: '{province_name_clean}'")
             cursor.execute(
-                "SELECT province_key FROM dbo.provinces WHERE LOWER(LTRIM(RTRIM(old_province))) = LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",
+                f"SELECT province_key FROM dbo.{table_name} WHERE LOWER(LTRIM(RTRIM(old_province))) = LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",
                 (province_name_clean,)
             )
             result = cursor.fetchone()
@@ -31,7 +31,7 @@ class ProvinceService:
             province_name_no_dash = province_name_clean.replace("–", "-").replace("—", "-")
             if province_name_no_dash != province_name_clean:
                 cursor.execute(
-                    "SELECT province_key FROM dbo.provinces WHERE LOWER(LTRIM(RTRIM(old_province))) = LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",
+                    f"SELECT province_key FROM dbo.{table_name} WHERE LOWER(LTRIM(RTRIM(old_province))) = LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",
                     (province_name_no_dash,)
                 )
                 result = cursor.fetchone()
@@ -41,7 +41,7 @@ class ProvinceService:
                     return result[0]
             
             cursor.execute(
-                "SELECT province_key FROM dbo.provinces WHERE LOWER(LTRIM(RTRIM(old_province))) LIKE LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",
+                f"SELECT province_key FROM dbo.{table_name} WHERE LOWER(LTRIM(RTRIM(old_province))) LIKE LOWER(LTRIM(RTRIM(?))) AND is_active = N'Y'",
                 (f'%{province_name_clean}%',)
             )
             result = cursor.fetchone()

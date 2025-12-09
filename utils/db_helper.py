@@ -4,8 +4,8 @@ try:
 except ImportError:
     import pyodbc
     USE_PYMSSQL = False
-import yaml
 import os
+from utils.config_helper import get_db_config
 
 class CursorWrapper:
     def __init__(self, cursor, is_pymssql):
@@ -28,14 +28,12 @@ class CursorWrapper:
             query = query.replace("?", "%s")
         return self._cursor.executemany(query, params_list)
 
-
 class ConnectionWrapper:
     def __init__(self, conn):
         self._conn = conn
         self._is_pymssql = USE_PYMSSQL
     
     def __getattr__(self, name):
-        # Nếu là autocommit và dùng pymssql, return False (pymssql mặc định không autocommit)
         if name == "autocommit" and self._is_pymssql:
             return False
         return getattr(self._conn, name)
@@ -61,6 +59,10 @@ class ConnectionWrapper:
 
 
 def load_config():
+    db_config = get_db_config()
+    if db_config:
+        return db_config
+    
     db_url = os.environ.get("DB_URL")
     db_username = os.environ.get("DB_USERNAME")
     db_password = os.environ.get("DB_PASSWORD")
@@ -74,18 +76,9 @@ def load_config():
             "database": db_name
         }
     
-    # Fallback: đọc từ file config.yaml
-    try:
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-        return config["users"]
-    except FileNotFoundError:
-        print("Lỗi đọc config: File config/config.yaml không tồn tại và không có environment variables")
-        print("Vui lòng tạo file config/config.yaml hoặc set các environment variables: DB_URL, DB_USERNAME, DB_PASSWORD")
-        return None
-    except Exception as e:
-        print(f"Lỗi đọc config: {e}")
-        return None
+    print("Lỗi đọc config: Không tìm thấy cấu hình database")
+    print("Vui lòng kiểm tra file config/config.yaml")
+    return None
 
 
 def get_db_connection():

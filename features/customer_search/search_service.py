@@ -3,7 +3,6 @@ from datetime import datetime
 from calendar import monthrange
 from utils.db_helper import get_db_connection
 
-
 class CustomerSearchService:
     
     def _format_province_name(self, province_name: str) -> str:
@@ -20,6 +19,7 @@ class CustomerSearchService:
             return f"Tỉnh {province_name}"
     
     def get_monthly_revenue(self, tax_code: str) -> Optional[Dict]:
+        # Lấy doanh thu hàng tháng của khách hàng đang hoạt động theo tax code
         if not tax_code:
             return None
         
@@ -117,6 +117,7 @@ class CustomerSearchService:
         
         try:
             cursor = conn.cursor()
+            # Lấy thông tin khách hàng đang hoạt động theo tax code
             cursor.execute(
                 """SELECT c.customer_name, c.address, p.new_province
                    FROM dbo.customers c

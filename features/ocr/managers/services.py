@@ -9,7 +9,7 @@ class ServiceManager:
         self.container_key_service = ContainerKeyService()
         self.service_service = ServiceService()
     
-    def process_and_save_services(self, items: list, receipt_date: str) -> int:
+    def process_and_save_services(self, items: list, receipt_date: str, use_test_tables: bool = False) -> int:
         if not items or not receipt_date:
             print(f"[ServiceManager] Skipping: no items or receipt_date")
             return 0
@@ -44,7 +44,8 @@ class ServiceManager:
             container_key = self.container_key_service.get_container_key(
                 container_size=service_info["container_size"],
                 container_status=service_info["container_status"],
-                container_type=service_info["container_type"]
+                container_type=service_info["container_type"],
+                use_test_tables=use_test_tables
             )
             
             if not container_key:
@@ -60,7 +61,8 @@ class ServiceManager:
                 from_date=service_info["from_date"],
                 to_date=service_info["to_date"],
                 unit_price=service_info["unit_price"],
-                tax_rate=service_info["tax_rate"]
+                tax_rate=service_info["tax_rate"],
+                use_test_tables=use_test_tables
             )
             
             if success:

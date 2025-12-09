@@ -9,7 +9,7 @@ class CustomerManager:
         self.province_service = ProvinceService()
         self.customer_service = CustomerService()
     
-    def process_and_save_customer(self, tax_code: str, customer_name: str, address: str) -> bool:
+    def process_and_save_customer(self, tax_code: str, customer_name: str, address: str, use_test_tables: bool = False) -> bool:
         if not tax_code or not customer_name or not address:
             print(f"[CustomerManager] Skipping: missing information (tax_code={tax_code}, customer_name={customer_name}, address={address})")
             return False
@@ -22,7 +22,7 @@ class CustomerManager:
         
         if province_name:
             print(f"[CustomerManager] Finding province_key for: '{province_name}'")
-            province_key = self.province_service.get_province_key(province_name)
+            province_key = self.province_service.get_province_key(province_name, use_test_tables)
             if province_key:
                 print(f"[CustomerManager] Found province_key: {province_key}")
             else:
@@ -34,7 +34,8 @@ class CustomerManager:
             tax_code=tax_code,
             customer_name=customer_name,
             address=address,
-            province_key=province_key
+            province_key=province_key,
+            use_test_tables=use_test_tables
         )
         
         if success:

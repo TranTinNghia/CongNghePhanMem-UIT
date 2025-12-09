@@ -5,7 +5,7 @@ class ReceiptManager:
     def __init__(self):
         self.receipt_service = ReceiptService()
     
-    def process_and_save_receipt(self, receipt_code: str, receipt_date: str, shipment_code: str, invoice_number: str, tax_code: str) -> bool:
+    def process_and_save_receipt(self, receipt_code: str, receipt_date: str, shipment_code: str, invoice_number: str, tax_code: str, use_test_tables: bool = False) -> bool:
         if not receipt_code or not receipt_date or not shipment_code or not invoice_number or not tax_code:
             print(f"[ReceiptManager] Skipping: missing information (receipt_code={receipt_code}, receipt_date={receipt_date}, shipment_code={shipment_code}, invoice_number={invoice_number}, tax_code={tax_code})")
             return False
@@ -21,7 +21,8 @@ class ReceiptManager:
             receipt_date=receipt_date,
             shipment_code=shipment_code,
             invoice_number=invoice_number,
-            tax_code=tax_code
+            tax_code=tax_code,
+            use_test_tables=use_test_tables
         )
         
         if success:

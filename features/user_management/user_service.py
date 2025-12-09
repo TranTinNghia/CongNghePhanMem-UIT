@@ -103,14 +103,15 @@ class UserService:
                 pass
             return []
     
-    def has_any_users(self) -> bool:
+    def has_any_users(self, use_test_tables: bool = False) -> bool:
         conn = get_db_connection()
         if not conn:
             return False
         
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM dbo.users")
+            table_name = "test_users" if use_test_tables else "users"
+            cursor.execute(f"SELECT COUNT(*) FROM dbo.{table_name}")
             result = cursor.fetchone()
             conn.close()
             
