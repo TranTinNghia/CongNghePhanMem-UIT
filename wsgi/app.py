@@ -168,14 +168,34 @@ def register():
     user_service = UserService()
     role_service = RoleService()
     department_service = DepartmentService()
-    has_users = user_service.has_any_users()
-    
-    if has_users:
-        available_roles = role_service.get_roles_for_registration()
-    else:
-        available_roles = role_service.get_all_roles()
     
     departments = department_service.get_all_departments()
+    
+    # Function để tự động xác định role dựa trên department name
+    def get_role_by_department(department_name: str) -> str:
+        if not department_name:
+            return "VIEWER"
+        
+        department_name = department_name.strip()
+        
+        # ADMIN: Phòng Công Nghệ Thông Tin
+        if department_name == "Phòng Công Nghệ Thông Tin":
+            return "ADMIN"
+        
+        # EDITOR: các phòng ban cụ thể
+        editor_departments = [
+            "Tư Lệnh Và Cấp Chỉ Huy",
+            "Phòng Tài Chính - Kế Toán",
+            "Phòng Marketing",
+            "Trung Tâm Điều Độ",
+            "Công Ty Cổ Phần Giải Pháp CNTT Tân Cảng (TCIS)"
+        ]
+        
+        if department_name in editor_departments:
+            return "EDITOR"
+        
+        # Mặc định: VIEWER
+        return "VIEWER"
     
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -186,36 +206,36 @@ def register():
         last_name = request.form.get("last_name", "").strip()
         department_key = request.form.get("department_key", "").strip()
         
-        if not has_users:
-            role_name = "ADMIN"
-        else:
-            role_name = request.form.get("role", "").strip()
-        
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirmPassword", "")
         
         if not username or not email or not phone_number or not first_name or not last_name or not password or not confirm_password:
             flash("Vui lòng điền đầy đủ thông tin bắt buộc!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
-        if has_users and not role_name:
-            flash("Vui lòng chọn vai trò!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+        # Bắt buộc chọn phòng ban
+        if not department_key:
+            flash("Vui lòng chọn phòng ban!", "error")
+            return render_template("register.html", departments=departments)
         
-        if has_users and role_name.upper() == "ADMIN":
-            flash("Không thể tạo tài khoản ADMIN! Chỉ có thể tạo ADMIN lần đầu.", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+        # Lấy tên phòng ban từ department_key
+        department_name = None
+        for dept in departments:
+            if dept["department_key"] == department_key:
+                department_name = dept["department"]
+                break
+        
+        if not department_name:
+            flash("Phòng ban không hợp lệ!", "error")
+            return render_template("register.html", departments=departments)
+        
+        # Tự động xác định role dựa trên phòng ban
+        role_name = get_role_by_department(department_name)
         
         role_key = role_service.get_role_key_by_name(role_name)
         if not role_key:
-            flash("Vai trò không hợp lệ!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
-        
-        if department_key:
-            dept = department_service.get_all_departments()
-            dept_dict = {d["department_key"]: d for d in dept}
-            if department_key not in dept_dict:
-                department_key = None
+            flash("Không thể xác định vai trò! Vui lòng thử lại.", "error")
+            return render_template("register.html", departments=departments)
         
         if phone_number.startswith("+84"):
             phone_number = "0" + phone_number[3:]
@@ -223,41 +243,41 @@ def register():
         
         if not phone_number.startswith("0") or len(phone_number) != 10:
             flash("Số điện thoại không hợp lệ! Phải có 10 số và bắt đầu bằng 0.", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         if "@" not in email or "." not in email.split("@")[1]:
             flash("Email không hợp lệ!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         if len(password) < 8:
             flash("Mật khẩu phải có ít nhất 8 ký tự!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         if not any(c.islower() for c in password):
             flash("Mật khẩu phải có ít nhất 1 chữ cái viết thường!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         if not any(c.isupper() for c in password):
             flash("Mật khẩu phải có ít nhất 1 chữ cái viết in hoa!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         if not any(c.isdigit() for c in password):
             flash("Mật khẩu phải có ít nhất 1 chữ số!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         special_chars = "!@#$%^&*()_+-=[]{};:\"\"\\|,.<>/?"
         if not any(c in special_chars for c in password):
             flash("Mật khẩu phải có ít nhất 1 ký tự đặc biệt!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         if password != confirm_password:
             flash("Mật khẩu xác nhận không khớp!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         conn = get_db_connection()
         if not conn:
             flash("Lỗi kết nối database. Vui lòng thử lại.", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+            return render_template("register.html", departments=departments)
         
         try:
             conn.autocommit = False
@@ -272,7 +292,7 @@ def register():
                 conn.rollback()
                 conn.close()
                 flash("Tên đăng nhập đã tồn tại! Vui lòng chọn tên đăng nhập khác.", "error")
-                return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+                return render_template("register.html", departments=departments)
             
             cursor.execute(
                 "SELECT email FROM dbo.users WITH (UPDLOCK, HOLDLOCK) WHERE LOWER(email) = LOWER(?)",
@@ -282,21 +302,16 @@ def register():
                 conn.rollback()
                 conn.close()
                 flash("Email đã được sử dụng! Vui lòng sử dụng email khác.", "error")
-                return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+                return render_template("register.html", departments=departments)
             
             hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
             
             try:
-                if department_key:
-                    cursor.execute(
-                        "INSERT INTO dbo.users (user_name, pass_word, email, phone_number, role_key, first_name, middle_name, last_name, department_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (username, hashed_password, email, phone_number, role_key, first_name, middle_name or None, last_name, department_key)
-                    )
-                else:
-                    cursor.execute(
-                        "INSERT INTO dbo.users (user_name, pass_word, email, phone_number, role_key, first_name, middle_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        (username, hashed_password, email, phone_number, role_key, first_name, middle_name or None, last_name)
-                    )
+                # Luôn có department_key vì đã bắt buộc chọn
+                cursor.execute(
+                    "INSERT INTO dbo.users (user_name, pass_word, email, phone_number, role_key, first_name, middle_name, last_name, department_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (username, hashed_password, email, phone_number, role_key, first_name, middle_name or None, last_name, department_key)
+                )
                 conn.commit()
                 conn.close()
                 
@@ -319,7 +334,7 @@ def register():
                     flash("Email đã được sử dụng! Vui lòng sử dụng email khác.", "error")
                 else:
                     flash("Thông tin đã tồn tại! Vui lòng kiểm tra lại.", "error")
-                return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+                return render_template("register.html", departments=departments)
             
         except Exception as e:
             print(f"Lỗi đăng ký: {e}")
@@ -334,7 +349,7 @@ def register():
             except:
                 pass
     
-    return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
+    return render_template("register.html", departments=departments)
 
 @app.route("/home")
 @login_required
@@ -374,6 +389,8 @@ def home():
             print(f"Lỗi lấy họ tên đầy đủ: {e}")
             full_name = username
     
+    jwt_token = session.get("jwt_token")
+    
     return render_template(
         "dashboard.html", 
         username=username,
@@ -381,7 +398,8 @@ def home():
         email=session.get("email"),
         phone_number=session.get("phone_number"),
         is_admin=is_admin,
-        user_role=user_role
+        user_role=user_role,
+        jwt_token=jwt_token
     )
 
 @app.route("/forgot-password", methods=["GET", "POST"])
@@ -873,7 +891,8 @@ def account_settings():
 @app.route("/customer-search")
 @login_required
 def customer_search():
-    return render_template("customer-search.html")
+    jwt_token = session.get("jwt_token")
+    return render_template("customer-search.html", jwt_token=jwt_token)
 
 @app.route("/role-management")
 @admin_required
@@ -884,7 +903,8 @@ def role_management():
     users = user_service.get_all_users()
     roles = role_service.get_all_roles()
     departments = department_service.get_all_departments()
-    return render_template("role-management.html", users=users, roles=roles, departments=departments)
+    jwt_token = session.get("jwt_token")
+    return render_template("role-management.html", users=users, roles=roles, departments=departments, jwt_token=jwt_token)
 
 @app.route("/api/customer/search", methods=["POST"])
 @token_required
@@ -1065,10 +1085,38 @@ def update_user_info():
         traceback.print_exc()
         return jsonify({"success": False, "error": f"Có lỗi xảy ra: {str(e)}"}), 500
 
+@app.route("/api/user/delete", methods=["POST"])
+@admin_token_required
+def delete_user():
+    try:
+        data = request.get_json()
+        username = data.get("username", "").strip()
+        
+        if not username:
+            return jsonify({"success": False, "error": "Vui lòng cung cấp tên đăng nhập"}), 400
+        
+        # Không cho phép xóa chính mình
+        current_user = getattr(request, 'current_user', None)
+        if current_user and current_user.get("username") == username:
+            return jsonify({"success": False, "error": "Bạn không thể xóa tài khoản của chính mình"}), 400
+        
+        user_service = UserService()
+        success = user_service.delete_user(username)
+        
+        if success:
+            return jsonify({"success": True, "message": f"Đã xóa tài khoản {username} thành công"})
+        else:
+            return jsonify({"success": False, "error": "Không thể xóa tài khoản. Vui lòng kiểm tra lại."}), 500
+    except Exception as e:
+        print(f"[delete_user] Error: {e}")
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"Có lỗi xảy ra: {str(e)}"}), 500
+
 @app.route("/dashboard-report")
 @login_required
 def dashboard_report():
-    return render_template("dashboard-report.html")
+    jwt_token = session.get("jwt_token")
+    return render_template("dashboard-report.html", jwt_token=jwt_token)
 
 @app.route("/api/dashboard/total-customers")
 @token_required
@@ -1225,21 +1273,30 @@ def api_data_version():
 @app.route("/ocr")
 @token_or_session_required
 def ocr():
-    # Lấy thông tin user từ token hoặc session
-    user = getattr(request, 'current_user', None)
-    
-    if user and user.get("auth_method") == "token":
-        # Nếu dùng token, lấy thông tin từ token
-        username = user.get("username")
-        user_role = user.get("role")
-    else:
-        # Fallback về session
-        username = session.get("username")
-        user_service = UserService()
-        user_role = user_service.get_user_role(username) if username else None
-    
-    can_edit = user_role in ["ADMIN", "EDITOR"] if user_role else False
-    return render_template("ocr.html", can_edit=can_edit, user_role=user_role or "N/A")
+    try:
+        # Lấy thông tin user từ token hoặc session
+        user = getattr(request, 'current_user', None)
+        
+        if user and user.get("auth_method") == "token":
+            # Nếu dùng token, lấy thông tin từ token
+            username = user.get("username")
+            user_role = user.get("role")
+        else:
+            # Fallback về session
+            username = session.get("username")
+            if not username:
+                flash("Vui lòng đăng nhập để truy cập trang này", "error")
+                return redirect(url_for("login"))
+            user_service = UserService()
+            user_role = user_service.get_user_role(username) if username else None
+        
+        can_edit = user_role in ["ADMIN", "EDITOR"] if user_role else False
+        return render_template("ocr.html", can_edit=can_edit, user_role=user_role or "N/A")
+    except Exception as e:
+        print(f"[ocr route] Error: {e}")
+        traceback.print_exc()
+        flash("Có lỗi xảy ra khi tải trang. Vui lòng thử lại.", "error")
+        return redirect(url_for("home"))
 
 @app.route("/ocr/process", methods=["POST"])
 @token_required
@@ -1411,6 +1468,10 @@ def ocr_save():
                 items = result.get("items", [])
                 
                 if items:
+                    
+                    if not isinstance(items, list):
+                        items = list(items) if items else []
+                    
                     container_manager = ContainerManager()
                     containers_saved = container_manager.process_and_save_containers(items)
                     if containers_saved == 0:
@@ -1435,7 +1496,7 @@ def ocr_save():
             errors = []
             if tax_code and tax_code != "-" and customer_name and customer_name != "-" and customer_address and customer_address != "-":
                 customer_manager = CustomerManager()
-                if not customer_manager.process_and_save_customer(tax_code, customer_name, customer_address, False):
+                if not customer_manager.process_and_save_customer(tax_code, customer_name, customer_address):
                     errors.append(f"Không thể lưu customer: {customer_name}")
             
             receipt_code = data.get("transaction_code", "")
@@ -1445,26 +1506,30 @@ def ocr_save():
             
             if receipt_code and receipt_code != "-" and receipt_date and receipt_date != "-" and shipment_code and shipment_code != "-" and invoice_number and invoice_number != "-" and tax_code and tax_code != "-":
                 receipt_manager = ReceiptManager()
-                if not receipt_manager.process_and_save_receipt(receipt_code, receipt_date, shipment_code, invoice_number, tax_code, False):
+                if not receipt_manager.process_and_save_receipt(receipt_code, receipt_date, shipment_code, invoice_number, tax_code):
                     errors.append(f"Không thể lưu receipt: {receipt_code}")
             
             items = data.get("items", [])
             
             if items:
+                
+                if not isinstance(items, list):
+                    items = list(items) if items else []
+                
                 container_manager = ContainerManager()
-                containers_saved = container_manager.process_and_save_containers(items, False)
+                containers_saved = container_manager.process_and_save_containers(items)
                 if containers_saved == 0:
                     errors.append("Không thể lưu containers")
                 
                 if receipt_date and receipt_date != "-":
                     service_manager = ServiceManager()
-                    services_saved = service_manager.process_and_save_services(items, receipt_date, False)
+                    services_saved = service_manager.process_and_save_services(items, receipt_date)
                     if services_saved == 0:
                         errors.append("Không thể lưu services")
                     
                     if receipt_code and receipt_code != "-":
                         line_manager = LineManager()
-                        lines_saved = line_manager.process_and_save_lines(items, receipt_code, receipt_date, False)
+                        lines_saved = line_manager.process_and_save_lines(items, receipt_code, receipt_date)
                         if lines_saved == 0:
                             errors.append("Không thể lưu lines")
         

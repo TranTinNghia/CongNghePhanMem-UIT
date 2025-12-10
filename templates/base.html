@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body data-logged-in="{% if session.user_id %}true{% else %}false{% endif %}">
+<body data-logged-in="{% if session.user_id %}true{% else %}false{% endif %}" data-jwt-token="{% if session.jwt_token %}{{ session.jwt_token }}{% endif %}">
     {% if session.user_id %}
     <div class="header">
         <div class="header-left" onclick="goToHome()" style="cursor: pointer;">
@@ -66,6 +66,19 @@
         const isLoggedIn = document.body.dataset.loggedIn === 'true';
         const homeUrl = "{{ url_for('home') }}";
         const loginUrl = "{{ url_for('login') }}";
+        const jwtToken = document.body.dataset.jwtToken || null;
+        
+        // Helper function to get auth headers for API calls
+        function getAuthHeaders() {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            if (jwtToken) {
+                headers['Authorization'] = 'Bearer ' + jwtToken;
+            }
+            return headers;
+        }
         
         function toggleUserMenu() {
             const dropdown = document.getElementById('userMenuDropdown');

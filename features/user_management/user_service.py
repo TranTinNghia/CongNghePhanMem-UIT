@@ -233,4 +233,56 @@ class UserService:
             except:
                 pass
             return False
+    
+    def delete_user(self, username: str) -> bool:
+        if not username:
+            print(f"[UserService] delete_user: Missing username")
+            return False
+        
+        conn = get_db_connection()
+        if not conn:
+            print(f"[UserService] delete_user: Cannot get database connection")
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Kiểm tra user có tồn tại không
+            cursor.execute(
+                "SELECT user_name FROM dbo.users WHERE LOWER(user_name) = LOWER(?)",
+                (username,)
+            )
+            user_exists = cursor.fetchone()
+            if not user_exists:
+                print(f"[UserService] delete_user: User '{username}' does not exist")
+                conn.close()
+                return False
+            
+            # Xóa user
+            cursor.execute(
+                "DELETE FROM dbo.users WHERE LOWER(user_name) = LOWER(?)",
+                (username,)
+            )
+            rows_affected = cursor.rowcount
+            print(f"[UserService] delete_user: Deleted {rows_affected} row(s) for user '{username}'")
+            
+            if rows_affected == 0:
+                print(f"[UserService] delete_user: No rows deleted for user '{username}'")
+                conn.rollback()
+                conn.close()
+                return False
+            
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"[UserService] Error deleting user: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                conn.rollback()
+                conn.close()
+            except:
+                pass
+            return False
 

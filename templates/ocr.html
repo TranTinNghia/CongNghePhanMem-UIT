@@ -21,7 +21,6 @@
                 <span>Quét nhiều file</span>
             </label>
         </div>
-        {% endif %}
     </div>
 
     <div class="ocr-content">
@@ -366,8 +365,14 @@ function processOCR() {
         scanBtn.disabled = true;
         scanBtn.innerHTML = '<span class="scan-icon">⏳</span> Đang quét...';
 
+        const headers = {};
+        if (jwtToken) {
+            headers['Authorization'] = 'Bearer ' + jwtToken;
+        }
+        
         fetch('{{ url_for("ocr_process") }}', {
             method: 'POST',
+            headers: headers,
             body: formData
         })
         .then(response => response.json())
@@ -411,8 +416,14 @@ function processOCR() {
         scanBtn.disabled = true;
         scanBtn.innerHTML = '<span class="scan-icon">⏳</span> Đang quét...';
 
+        const headers = {};
+        if (jwtToken) {
+            headers['Authorization'] = 'Bearer ' + jwtToken;
+        }
+        
         fetch('{{ url_for("ocr_process_multiple") }}', {
             method: 'POST',
+            headers: headers,
             body: formData
         })
         .then(response => response.json())
@@ -776,11 +787,14 @@ function confirmSaveSingle() {
         }
     });
     
+    const saveHeaders = {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+    };
+    
     fetch('{{ url_for("ocr_save") }}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: saveHeaders,
         body: JSON.stringify({
             ...data,
         })
@@ -879,11 +893,14 @@ function confirmSaveMultiple() {
         }
     });
     
+    const saveHeadersMultiple = {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+    };
+    
     fetch('{{ url_for("ocr_save") }}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: saveHeadersMultiple,
         body: JSON.stringify({
             is_multiple: true,
             data: results

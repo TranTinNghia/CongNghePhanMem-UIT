@@ -4,6 +4,68 @@
 
 {% block extra_js %}
 <script>
+// Mapping phòng ban -> role
+const departmentRoleMap = {
+    "Phòng Công Nghệ Thông Tin": "ADMIN",
+    "Tư Lệnh Và Cấp Chỉ Huy": "EDITOR",
+    "Phòng Tài Chính - Kế Toán": "EDITOR",
+    "Phòng Marketing": "EDITOR",
+    "Trung Tâm Điều Độ": "EDITOR",
+    "Công Ty Cổ Phần Giải Pháp CNTT Tân Cảng (TCIS)": "EDITOR"
+};
+
+function updateRoleDisplay() {
+    const departmentSelect = document.getElementById('department_key');
+    const roleDisplay = document.getElementById('roleDisplay');
+    const roleInput = document.getElementById('roleInput');
+    const roleHint = document.getElementById('roleHint');
+    
+    const selectedOption = departmentSelect.options[departmentSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) {
+        roleDisplay.innerHTML = '<span style="color: #718096; font-style: italic;">Vui lòng chọn phòng ban để xem vai trò</span>';
+        roleInput.value = '';
+        roleHint.style.display = 'none';
+        return;
+    }
+    
+    const departmentName = selectedOption.getAttribute('data-name');
+    if (!departmentName) {
+        roleDisplay.innerHTML = '<span style="color: #718096; font-style: italic;">Vui lòng chọn phòng ban để xem vai trò</span>';
+        roleInput.value = '';
+        roleHint.style.display = 'none';
+        return;
+    }
+    
+    const role = departmentRoleMap[departmentName] || "VIEWER";
+    roleInput.value = role;
+    
+    let roleBadgeClass = 'role-badge';
+    let roleColor = '#718096';
+    if (role === 'ADMIN') {
+        roleBadgeClass = 'role-badge-admin';
+        roleColor = '#c53030';
+    } else if (role === 'EDITOR') {
+        roleColor = '#2c5282';
+    }
+    
+    const roleIcon = role === 'ADMIN' ? '👑 ' : role === 'EDITOR' ? '✏️ ' : '👁️ ';
+    const roleBg = role === 'ADMIN' ? '#fed7d7' : role === 'EDITOR' ? '#bee3f8' : '#e2e8f0';
+    
+    roleDisplay.innerHTML = 
+        '<div class="' + roleBadgeClass + '" style="display: inline-block; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600; background: ' + roleBg + '; color: ' + roleColor + ';">' +
+        roleIcon + role +
+        '</div>' +
+        '<p style="margin-top: 0.5rem; color: #718096; font-size: 0.85rem;">Vai trò tự động: ' + departmentName + '</p>';
+    roleHint.style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentSelect = document.getElementById('department_key');
+    if (departmentSelect) {
+        departmentSelect.addEventListener('change', updateRoleDisplay);
+    }
+});
+
 function handlePhoneChange(e) {
     let value = e.target.value;
     
@@ -54,13 +116,6 @@ function checkPasswordMatch() {
 <div class="auth-container">
     <div class="auth-card">
         <h2>Đăng ký</h2>
-        {% if is_first_user %}
-        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-            <p style="margin: 0; color: #856404; font-weight: 500;">
-                ⚠️ Lần đầu đăng ký: Vui lòng tạo tài khoản ADMIN để quản lý hệ thống.
-            </p>
-        </div>
-        {% endif %}
         <form method="POST" action="{{ url_for('register') }}">
             <div class="form-group">
                 <label for="username">Tên đăng nhập</label>
@@ -137,34 +192,24 @@ function checkPasswordMatch() {
             </div>
 
             <div class="form-group">
-                <label for="department_key">Phòng ban</label>
-                <select id="department_key" name="department_key">
-                    <option value="">-- Chọn phòng ban (tùy chọn) --</option>
+                <label for="department_key">Phòng ban <span style="color: red;">*</span></label>
+                <select id="department_key" name="department_key" required>
+                    <option value="">-- Chọn phòng ban --</option>
                     {% for dept in departments %}
-                    <option value="{{ dept.department_key }}">{{ dept.department }}</option>
+                    <option value="{{ dept.department_key }}" data-name="{{ dept.department }}">{{ dept.department }}</option>
                     {% endfor %}
                 </select>
+                <div class="role-hint" id="roleHint" style="margin-top: 0.5rem; padding: 0.5rem; background: #e6f3ff; border-radius: 6px; font-size: 0.85rem; color: #0066cc; display: none;">
+                    Vai trò sẽ được tự động xác định dựa trên phòng ban bạn chọn
+                </div>
             </div>
 
             <div class="form-group">
                 <label for="role">Vai trò</label>
-                {% if is_first_user %}
-                <div class="role-display-container">
-                    <div class="role-badge-admin">
-                        <span class="role-icon">👑</span>
-                        <span class="role-text">ADMIN</span>
-                    </div>
-                    <p class="role-note">Vai trò mặc định cho tài khoản đầu tiên</p>
+                <div class="role-display-container" id="roleDisplay" style="padding: 0.8rem; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; text-align: center;">
+                    <span style="color: #718096; font-style: italic;">Vui lòng chọn phòng ban để xem vai trò</span>
                 </div>
-                <input type="hidden" name="role" value="ADMIN">
-                {% else %}
-                <select id="role" name="role" required>
-                    <option value="">-- Chọn vai trò --</option>
-                    {% for role in roles %}
-                    <option value="{{ role.role_name }}">{{ role.role_name }}</option>
-                    {% endfor %}
-                </select>
-                {% endif %}
+                <input type="hidden" name="role" id="roleInput" value="">
             </div>
             
             <div class="form-group">

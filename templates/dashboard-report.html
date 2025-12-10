@@ -304,7 +304,9 @@ function formatNumber(num) {
 
 async function loadTotalCustomers() {
     try {
-        const response = await fetch('/api/dashboard/total-customers');
+        const response = await fetch('/api/dashboard/total-customers', {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         if (result.success) {
             document.getElementById('totalCustomers').textContent = formatNumber(result.data);
@@ -418,8 +420,12 @@ let allCustomersList = [];
 async function loadFilters() {
     try {
         const [customersRes, monthsRes] = await Promise.all([
-            fetch('/api/dashboard/customers-list'),
-            fetch('/api/dashboard/months-list')
+            fetch('/api/dashboard/customers-list', {
+                headers: getAuthHeaders()
+            }),
+            fetch('/api/dashboard/months-list', {
+                headers: getAuthHeaders()
+            })
         ]);
         
         const customersData = await customersRes.json();
@@ -466,11 +472,15 @@ let allMonths = [];
 async function loadCustomerMonthlyRevenue() {
     try {
         const params = getFilterParams();
-        const response = await fetch(`/api/dashboard/customer-monthly-revenue?${params}`);
+        const response = await fetch(`/api/dashboard/customer-monthly-revenue?${params}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (!allMonths.length) {
-            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsRes = await fetch('/api/dashboard/months-list', {
+                headers: getAuthHeaders()
+            });
             const monthsData = await monthsRes.json();
             if (monthsData.success) {
                 allMonths = monthsData.data;
@@ -693,11 +703,15 @@ function updateContainerChartLegend(datasets) {
 async function loadCustomerMonthlyContainer() {
     try {
         const params = getFilterParams();
-        const response = await fetch(`/api/dashboard/customer-monthly-revenue?${params}`);
+        const response = await fetch(`/api/dashboard/customer-monthly-revenue?${params}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (!allMonths.length) {
-            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsRes = await fetch('/api/dashboard/months-list', {
+                headers: getAuthHeaders()
+            });
             const monthsData = await monthsRes.json();
             if (monthsData.success) {
                 allMonths = monthsData.data;
@@ -883,11 +897,15 @@ async function loadCustomerMonthlyContainer() {
 async function loadCustomerContainerUsage() {
     try {
         const params = getFilterParams();
-        const response = await fetch(`/api/dashboard/monthly-container-usage?${params}`);
+        const response = await fetch(`/api/dashboard/monthly-container-usage?${params}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (!allMonths.length) {
-            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsRes = await fetch('/api/dashboard/months-list', {
+                headers: getAuthHeaders()
+            });
             const monthsData = await monthsRes.json();
             if (monthsData.success) {
                 allMonths = monthsData.data;
@@ -1054,11 +1072,15 @@ async function loadCustomerContainerUsage() {
 async function loadContainerTypeUsage() {
     try {
         const params = getFilterParams();
-        const response = await fetch(`/api/dashboard/monthly-container-type-usage?${params}`);
+        const response = await fetch(`/api/dashboard/monthly-container-type-usage?${params}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (!allMonths.length) {
-            const monthsRes = await fetch('/api/dashboard/months-list');
+            const monthsRes = await fetch('/api/dashboard/months-list', {
+                headers: getAuthHeaders()
+            });
             const monthsData = await monthsRes.json();
             if (monthsData.success) {
                 allMonths = monthsData.data;
@@ -1232,7 +1254,9 @@ async function loadContainerTypeUsage() {
 async function loadCustomersByProvince() {
     try {
         const params = getFilterParams();
-        const response = await fetch(`/api/dashboard/customers-by-province?${params}`);
+        const response = await fetch(`/api/dashboard/customers-by-province?${params}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         const ctx = document.getElementById('customersByProvinceChart').getContext('2d');
@@ -1349,7 +1373,9 @@ async function loadCustomersByProvince() {
 async function loadRevenueByProvince() {
     try {
         const params = getFilterParams();
-        const response = await fetch(`/api/dashboard/revenue-by-province?${params}`);
+        const response = await fetch(`/api/dashboard/revenue-by-province?${params}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         if (result.success) {
             if (result.data.length > 0) {

@@ -64,9 +64,14 @@
                         </select>
                     </td>
                     <td>
-                        <button class="btn-save" onclick="saveUserInfo('{{ user.username }}')" disabled>
-                            Lưu
-                        </button>
+                        <div class="action-buttons">
+                            <button class="btn-save" onclick="saveUserInfo('{{ user.username }}')" disabled>
+                                Lưu
+                            </button>
+                            <button class="btn-delete" onclick="deleteUser('{{ user.username }}')" title="Xóa tài khoản">
+                                🗑️
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -176,6 +181,7 @@
         fetch('/api/user/update-info', {
             method: 'POST',
             headers: {
+                ...getAuthHeaders(),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(updateData)
@@ -231,6 +237,45 @@
         });
     }
 
+    function deleteUser(username) {
+        if (!confirm(`Bạn có chắc chắn muốn xóa tài khoản "${username}"?\n\nHành động này không thể hoàn tác và sẽ xóa vĩnh viễn tài khoản khỏi hệ thống.`)) {
+            return;
+        }
+        
+        fetch('/api/user/delete', {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username: username })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message || `Đã xóa tài khoản ${username} thành công`, 'success');
+                // Xóa dòng khỏi bảng
+                const row = document.querySelector(`tr[data-username="${username}"]`);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s';
+                    row.style.opacity = '0';
+                    setTimeout(() => {
+                        row.remove();
+                    }, 300);
+                }
+            } else {
+                showMessage(data.error || 'Có lỗi xảy ra khi xóa tài khoản', 'error');
+            }
+        })
+        .catch(error => {
+            showMessage(`Có lỗi xảy ra khi kết nối đến server: ${error.message}`, 'error');
+        });
+    }
 
     function showMessage(message, type) {
         const container = document.getElementById('messageContainer');

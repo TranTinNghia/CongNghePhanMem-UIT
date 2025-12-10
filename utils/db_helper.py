@@ -146,8 +146,9 @@ def get_db_connection():
                         f"UID={username};"
                         f"PWD={password};"
                         f"TrustServerCertificate=yes;"
+                        f"Connection Timeout=30;"
                     )
-                    conn = pyodbc.connect(conn_str)
+                    conn = pyodbc.connect(conn_str, timeout=30)
                     break
                 except Exception as e:
                     print(f"Thử driver {driver} thất bại: {e}")

@@ -114,8 +114,19 @@
     }
 
     function fetchCustomerCount() {
-        fetch('/api/customers/count')
-            .then(response => response.json())
+        fetch('/api/customers/count', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    console.error('Không có quyền truy cập. Vui lòng đăng nhập lại.');
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Unauthorized');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     const countElement = document.getElementById('customer-count');
@@ -133,8 +144,19 @@
     }
 
     function fetchDocumentCount() {
-        fetch('/api/documents/count')
-            .then(response => response.json())
+        fetch('/api/documents/count', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    console.error('Không có quyền truy cập. Vui lòng đăng nhập lại.');
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Unauthorized');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     const countElement = document.getElementById('document-count');

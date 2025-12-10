@@ -181,6 +181,39 @@
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-delete {
+    padding: 0.5rem 0.8rem;
+    background-color: #fed7d7;
+    color: #c53030;
+    border: 2px solid #fc8181;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+}
+
+.btn-delete:hover {
+    background-color: #fc8181;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(197, 48, 48, 0.4);
+}
+
+.btn-delete:active {
+    transform: translateY(0);
+}
+
 #messageContainer {
     margin-top: 1rem;
 }

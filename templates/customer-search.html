@@ -142,6 +142,7 @@
         fetch('{{ url_for("search_customer") }}', {
             method: 'POST',
             headers: {
+                ...getAuthHeaders(),
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ tax_code: taxCode })
@@ -266,6 +267,7 @@
         fetch('{{ url_for("export_customer_csv") }}', {
             method: 'POST',
             headers: {
+                ...getAuthHeaders(),
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ tax_code: taxCode })
