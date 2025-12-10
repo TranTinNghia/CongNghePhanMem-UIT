@@ -24,14 +24,13 @@ class ReceiptService:
         
         return None
     
-    def _get_customer_key_by_tax_code(self, tax_code: str, cursor, use_test_tables: bool = False) -> Optional[str]:
+    def _get_customer_key_by_tax_code(self, tax_code: str, cursor) -> Optional[str]:
         if not tax_code or tax_code == "-":
             return None
         
         tax_code = tax_code.strip()
-        table_name = "test_customers" if use_test_tables else "customers"
         cursor.execute(
-            f"SELECT customer_key FROM dbo.{table_name} WHERE tax_code = ? AND is_active = N'Y'",
+            "SELECT customer_key FROM dbo.customers WHERE tax_code = ? AND is_active = N'Y'",
             (tax_code,)
         )
         result = cursor.fetchone()
@@ -39,7 +38,7 @@ class ReceiptService:
             return result[0]
         return None
     
-    def save_receipt_scd1(self, receipt_code: str, receipt_date: str, shipment_code: str, invoice_number: str, tax_code: str, use_test_tables: bool = False) -> bool:
+    def save_receipt_scd1(self, receipt_code: str, receipt_date: str, shipment_code: str, invoice_number: str, tax_code: str) -> bool:
         if not receipt_code or not receipt_date or not shipment_code or not invoice_number or not tax_code:
             return False
         
@@ -62,17 +61,15 @@ class ReceiptService:
             cursor = conn.cursor()
             cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
             
-            customer_key = self._get_customer_key_by_tax_code(tax_code, cursor, use_test_tables)
+            customer_key = self._get_customer_key_by_tax_code(tax_code, cursor)
             if not customer_key:
                 print(f"[ReceiptService] Could not find customer_key for tax_code: {tax_code}")
                 conn.rollback()
                 conn.close()
                 return False
             
-            table_name = "test_receipts" if use_test_tables else "receipts"
-            print(f"[ReceiptService] use_test_tables={use_test_tables}, using table: {table_name}")
             cursor.execute(
-                f"SELECT receipt_key, receipt_code, receipt_date, shipment_code, invoice_number, customer_key FROM dbo.{table_name} WHERE receipt_code = ?",
+                "SELECT receipt_key, receipt_code, receipt_date, shipment_code, invoice_number, customer_key FROM dbo.receipts WHERE receipt_code = ?",
                 (receipt_code,)
             )
             existing_receipt = cursor.fetchone()
@@ -112,14 +109,14 @@ class ReceiptService:
                     return True
                 
                 cursor.execute(
-                    f"""UPDATE dbo.{table_name} 
+                    """UPDATE dbo.receipts 
                        SET receipt_code = ?, receipt_date = ?, shipment_code = ?, invoice_number = ?, customer_key = ?
                        WHERE receipt_key = ?""",
                     (receipt_code, converted_date, shipment_code, invoice_number, customer_key, old_receipt_key)
                 )
             else:
                 cursor.execute(
-                    f"""INSERT INTO dbo.{table_name} (receipt_code, receipt_date, shipment_code, invoice_number, customer_key)
+                    """INSERT INTO dbo.receipts (receipt_code, receipt_date, shipment_code, invoice_number, customer_key)
                        VALUES (?, ?, ?, ?, ?)""",
                     (receipt_code, converted_date, shipment_code, invoice_number, customer_key)
                 )

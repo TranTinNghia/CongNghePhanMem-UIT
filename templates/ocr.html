@@ -7,20 +7,10 @@
 {% endblock %}
 
 {% block content %}
-{% if test_mode %}
-<div class="test-mode-banner">
-    <div class="test-mode-content">
-        <span class="test-mode-icon">🧪</span>
-        <span class="test-mode-text">Đang ở chế độ TEST</span>
-        <button class="test-mode-close" onclick="exitTestMode()">✕ Thoát</button>
-    </div>
-</div>
-{% endif %}
 <div class="ocr-container">
     <div class="ocr-header">
         <h1>Quét OCR</h1>
         <p class="ocr-subtitle">Tải lên file PDF để trích xuất thông tin</p>
-        {% if not test_mode %}
         <div class="scan-mode-selector">
             <label class="mode-option">
                 <input type="radio" name="scanMode" value="single" checked onchange="switchScanMode('single')">
@@ -190,11 +180,9 @@
     </div>
 </div>
 
-<div id="appConfig" data-can-edit="{% if can_edit %}true{% else %}false{% endif %}" data-test-mode="{% if test_mode %}true{% else %}false{% endif %}" data-test-case="{% if test_case %}{{ test_case }}{% else %}{% endif %}" style="display: none;"></div>
+<div id="appConfig" data-can-edit="{% if can_edit %}true{% else %}false{% endif %}" style="display: none;"></div>
 <script>
 const canEdit = document.getElementById('appConfig').getAttribute('data-can-edit') === 'true';
-const testMode = document.getElementById('appConfig').getAttribute('data-test-mode') === 'true';
-const testCase = document.getElementById('appConfig').getAttribute('data-test-case');
 let selectedFile = null;
 let selectedFiles = [];
 let scanMode = 'single';
@@ -795,32 +783,13 @@ function confirmSaveSingle() {
         },
         body: JSON.stringify({
             ...data,
-            use_test_tables: testMode
         })
     })
     .then(response => {
         if (!response.ok) {
             return response.json().then(result => {
                 enableAllInputs();
-                if (testMode && testCase === '1') {
-                    const testResult = {
-                        test_name: 'Test Case 1: Quét 1 file PDF',
-                        passed: false,
-                        message: 'FAIL - ' + (result.error || 'Không thể lưu dữ liệu'),
-                        steps: [
-                            { step_name: 'Bước 1: Quét OCR', status: 'success', message: 'Quét OCR thành công' },
-                            { step_name: 'Bước 2: Lưu dữ liệu', status: 'fail', message: result.error || 'Không thể lưu dữ liệu', data: result.errors || [] }
-                        ],
-                        details: {
-                            error: result.error,
-                            errors: result.errors || []
-                        }
-                    };
-                    sessionStorage.setItem('testResult', JSON.stringify(testResult));
-                    window.location.href = '{{ url_for("test_page") }}?test_case=1';
-                } else {
-                    alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
-                }
+                alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
             });
         }
         return response.json();
@@ -830,60 +799,20 @@ function confirmSaveSingle() {
         
         enableAllInputs();
         if (result.success) {
-            if (testMode && testCase === '1') {
-                const testResult = {
-                    test_name: 'Test Case 1: Quét 1 file PDF',
-                    passed: true,
-                    message: 'PASS - Đã quét và lưu thành công vào test tables',
-                    steps: [
-                        { step_name: 'Bước 1: Quét OCR', status: 'success', message: 'Quét OCR thành công' },
-                        { step_name: 'Bước 2: Lưu Customer', status: 'success', message: 'Đã lưu customer vào test_customers' },
-                        { step_name: 'Bước 3: Lưu Receipt', status: 'success', message: 'Đã lưu receipt vào test_receipts' },
-                        { step_name: 'Bước 4: Lưu Containers', status: 'success', message: 'Đã lưu containers vào test_containers' },
-                        { step_name: 'Bước 5: Lưu Services', status: 'success', message: 'Đã lưu services vào test_services' },
-                        { step_name: 'Bước 6: Lưu Lines', status: 'success', message: 'Đã lưu lines vào test_lines' }
-                    ],
-                    details: {
-                        data_saved: data,
-                        items_count: data.items.length
-                    }
-                };
-                sessionStorage.setItem('testResult', JSON.stringify(testResult));
-                window.location.href = '{{ url_for("test_page") }}?test_case=1';
-            } else {
-                alert('Lưu dữ liệu thành công!');
-                if (result.stats) {
-                    const statsChannel = new BroadcastChannel('dashboard_stats');
-                    statsChannel.postMessage({
-                        type: 'stats_update',
-                        stats: result.stats
-                    });
-                    statsChannel.close();
-                }
-                const dashboardChannel = new BroadcastChannel('dashboard-updates');
-                dashboardChannel.postMessage({ type: 'data-updated' });
-                dashboardChannel.close();
+            alert('Lưu dữ liệu thành công!');
+            if (result.stats) {
+                const statsChannel = new BroadcastChannel('dashboard_stats');
+                statsChannel.postMessage({
+                    type: 'stats_update',
+                    stats: result.stats
+                });
+                statsChannel.close();
             }
+            const dashboardChannel = new BroadcastChannel('dashboard-updates');
+            dashboardChannel.postMessage({ type: 'data-updated' });
+            dashboardChannel.close();
         } else {
-            if (testMode && testCase === '1') {
-                const testResult = {
-                    test_name: 'Test Case 1: Quét 1 file PDF',
-                    passed: false,
-                    message: 'FAIL - ' + (result.error || 'Không thể lưu dữ liệu'),
-                    steps: [
-                        { step_name: 'Bước 1: Quét OCR', status: 'success', message: 'Quét OCR thành công' },
-                        { step_name: 'Bước 2: Lưu dữ liệu', status: 'fail', message: result.error || 'Không thể lưu dữ liệu', data: result.errors || [] }
-                    ],
-                    details: {
-                        error: result.error,
-                        errors: result.errors || []
-                    }
-                };
-                sessionStorage.setItem('testResult', JSON.stringify(testResult));
-                window.location.href = '{{ url_for("test_page") }}?test_case=1';
-            } else {
-                alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
-            }
+            alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu'));
         }
     })
     .catch(error => {
@@ -1000,11 +929,6 @@ function formatNumber(num) {
     return new Intl.NumberFormat('vi-VN').format(num);
 }
 
-function exitTestMode() {
-    if (confirm('Bạn có chắc muốn thoát chế độ test?')) {
-        window.location.href = '{{ url_for("test_page") }}';
-    }
-}
 </script>
 {% endblock %}
 

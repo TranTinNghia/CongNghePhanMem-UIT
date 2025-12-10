@@ -38,86 +38,10 @@
         </form>
 
         <div class="auth-footer">
-            <p>Chưa có tài khoản? <a href="{{ url_for('register') }}{% if test_mode %}?test_mode=true&test_case={{ test_case }}{% endif %}">Đăng ký ngay</a></p>
+            <p>Chưa có tài khoản? <a href="{{ url_for('register') }}">Đăng ký ngay</a></p>
         </div>
     </div>
 </div>
 
-{% if test_mode %}
-<div class="test-mode-banner" style="position: fixed; top: 0; left: 0; right: 0; background: #ff9800; color: white; padding: 10px; text-align: center; z-index: 1000;">
-    <span>🧪 Đang ở chế độ TEST - Dữ liệu sẽ được lưu vào các bảng test_*</span>
-    <button onclick="exitTestMode()" style="margin-left: 20px; background: white; color: #ff9800; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px;">✕ Thoát</button>
-</div>
-<script>
-function exitTestMode() {
-    sessionStorage.removeItem('testMode');
-    sessionStorage.removeItem('testCase');
-    sessionStorage.removeItem('testActions');
-    window.location.href = '{{ url_for("test_page") }}';
-}
-
-function trackTestAction(action) {
-    const testMode = sessionStorage.getItem('testMode');
-    if (testMode === 'true') {
-        let testActions = [];
-        try {
-            const stored = sessionStorage.getItem('testActions');
-            if (stored) {
-                testActions = JSON.parse(stored);
-            }
-        } catch (e) {
-            console.error('Error parsing testActions:', e);
-        }
-        
-        action.timestamp = new Date().toISOString();
-        testActions.push(action);
-        sessionStorage.setItem('testActions', JSON.stringify(testActions));
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    if (form && {{ test_mode|lower }}) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(form);
-            const username = formData.get('username');
-            
-            fetch(form.action, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then(data => Promise.reject(data));
-                }
-            })
-            .then(data => {
-                trackTestAction({
-                    type: 'login',
-                    data: data.data || { username: username, success: data.success }
-                });
-                
-                if (data.success) {
-                    window.location.href = '{{ url_for("test_page") }}?test_case={{ test_case }}';
-                } else {
-                    alert('Đăng nhập thất bại: ' + (data.data?.error || 'Lỗi không xác định'));
-                }
-            })
-            .catch(error => {
-                trackTestAction({
-                    type: 'login',
-                    data: { username: username, success: false, error: error.data?.error || error.message || 'Lỗi không xác định' }
-                });
-                alert('Đăng nhập thất bại: ' + (error.data?.error || error.message || 'Lỗi không xác định'));
-            });
-        });
-    }
-});
-</script>
-{% endif %}
 {% endblock %}
 

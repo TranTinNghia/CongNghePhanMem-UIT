@@ -3,7 +3,7 @@ from utils.db_helper import get_db_connection
 
 class CustomerService:
     
-    def save_customer_scd2(self, tax_code: str, customer_name: str, address: str, province_key: Optional[str], use_test_tables: bool = False) -> bool:
+    def save_customer_scd2(self, tax_code: str, customer_name: str, address: str, province_key: Optional[str]) -> bool:
         if not tax_code or not customer_name:
             return False
         
@@ -22,10 +22,8 @@ class CustomerService:
             cursor = conn.cursor()
             cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
             
-            table_name = "test_customers" if use_test_tables else "customers"
-            print(f"[CustomerService] use_test_tables={use_test_tables}, using table: {table_name}")
             cursor.execute(
-                f"SELECT customer_key, customer_name, address, province_key FROM dbo.{table_name} WHERE tax_code = ? AND is_active = N'Y'",
+                "SELECT customer_key, customer_name, address, province_key FROM dbo.customers WHERE tax_code = ? AND is_active = N'Y'",
                 (tax_code,)
             )
             existing_customer = cursor.fetchone()
@@ -60,18 +58,18 @@ class CustomerService:
                 current_timestamp = cursor.fetchone()[0]
                 
                 cursor.execute(
-                    f"UPDATE dbo.{table_name} SET end_time = ?, is_active = N'N' WHERE customer_key = ?",
+                    "UPDATE dbo.customers SET end_time = ?, is_active = N'N' WHERE customer_key = ?",
                     (current_timestamp, old_customer_key)
                 )
                 
                 cursor.execute(
-                    f"""INSERT INTO dbo.{table_name} (tax_code, customer_name, address, province_key, start_time, end_time, is_active)
+                    """INSERT INTO dbo.customers (tax_code, customer_name, address, province_key, start_time, end_time, is_active)
                        VALUES (?, ?, ?, ?, ?, NULL, N'Y')""",
                     (tax_code, customer_name, address, province_key, current_timestamp)
                 )
             else:
                 cursor.execute(
-                    f"""INSERT INTO dbo.{table_name} (tax_code, customer_name, address, province_key, start_time, end_time, is_active)
+                    """INSERT INTO dbo.customers (tax_code, customer_name, address, province_key, start_time, end_time, is_active)
                        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, N'Y')""",
                     (tax_code, customer_name, address, province_key)
                 )

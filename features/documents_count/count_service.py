@@ -3,17 +3,15 @@ from utils.db_helper import get_db_connection
 
 class DocumentCountService:
     
-    def get_document_count(self, use_test_tables: bool = False) -> Optional[int]:
+    def get_document_count(self) -> Optional[int]:
         conn = get_db_connection()
         if not conn:
             return None
         
         try:
             cursor = conn.cursor()
-            table_name = "test_receipts" if use_test_tables else "receipts"
-            
             # Đếm tổng số receipts trong database
-            cursor.execute(f"SELECT COUNT(*) FROM dbo.{table_name}")
+            cursor.execute("SELECT COUNT(*) FROM dbo.receipts")
             result = cursor.fetchone()
             conn.close()
             

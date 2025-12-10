@@ -12,10 +12,9 @@ import bcrypt
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash, Response
 import csv
 import io
-from test.test_runner import TestRunner
 from datetime import datetime
 from utils.config_helper import get_flask_secret_key
-from utils.auth_helper import token_or_session_required
+from utils.auth_helper import token_or_session_required, generate_token
 from utils.ocr_processor import OCRProcessor
 from features.ocr.managers.customers import CustomerManager
 from features.ocr.managers.containers import ContainerManager
@@ -32,7 +31,6 @@ from features.user_management.user_service import UserService
 from features.user_management.department_service import DepartmentService
 from features.dashboard_report.report_service import DashboardReportService
 
-# root_dir đã được tính ở đầu file, sử dụng lại
 app = Flask(
     __name__,
     template_folder=os.path.join(root_dir, "templates"),
@@ -43,11 +41,6 @@ app.secret_key = get_flask_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 86400
-TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
-app.config["TEST_MODE"] = TEST_MODE
-
-def is_test_mode():
-    return app.config.get("TEST_MODE", False)
 
 def login_required(f):
     @wraps(f)
@@ -138,6 +131,13 @@ def login():
                 session["department"] = user[8] if user[8] else ""
                 session["session_tracking_id"] = str(uuid.uuid4())
                 
+                # Tạo JWT token
+                user_role = user[7] if user[7] else "N/A"
+                jwt_token = generate_token(user[0], user_role)
+                
+                # Lưu token vào session để có thể truy cập sau
+                session["jwt_token"] = jwt_token
+                
                 conn.commit()
                 conn.close()
                 
@@ -164,6 +164,7 @@ def login():
 def register():
     if "user_id" in session:
         return redirect(url_for("home"))
+    
     user_service = UserService()
     role_service = RoleService()
     department_service = DepartmentService()
@@ -208,7 +209,7 @@ def register():
         role_key = role_service.get_role_key_by_name(role_name)
         if not role_key:
             flash("Vai trò không hợp lệ!", "error")
-            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users, test_mode=test_mode, test_case=test_case)
+            return render_template("register.html", roles=available_roles, departments=departments, is_first_user=not has_users)
         
         if department_key:
             dept = department_service.get_all_departments()
@@ -339,6 +340,7 @@ def register():
 @login_required
 def home():
     username = session.get("username")
+    
     if username:
         visit_service = VisitCountService()
         session_tracking_id = session.get("session_tracking_id")
@@ -1050,7 +1052,7 @@ def update_user_info():
             first_name=first_name if first_name else None,
             middle_name=middle_name if middle_name else None,
             last_name=last_name if last_name else None,
-            department_key=department_key if department_key else None
+            department_key=department_key if department_key else None,
         )
         
         if success:
@@ -1221,10 +1223,20 @@ def api_data_version():
 @app.route("/ocr")
 @token_or_session_required
 def ocr():
-    username = session.get("username")
-    user_service = UserService()
-    user_role = user_service.get_user_role(username) if username else None
-    can_edit = user_role in ["ADMIN", "EDITOR"]
+    # Lấy thông tin user từ token hoặc session
+    user = getattr(request, 'current_user', None)
+    
+    if user and user.get("auth_method") == "token":
+        # Nếu dùng token, lấy thông tin từ token
+        username = user.get("username")
+        user_role = user.get("role")
+    else:
+        # Fallback về session
+        username = session.get("username")
+        user_service = UserService()
+        user_role = user_service.get_user_role(username) if username else None
+    
+    can_edit = user_role in ["ADMIN", "EDITOR"] if user_role else False
     return render_template("ocr.html", can_edit=can_edit, user_role=user_role or "N/A")
 
 @app.route("/ocr/process", methods=["POST"])
@@ -1378,10 +1390,7 @@ def ocr_save():
         if not data:
             return jsonify({"success": False, "error": "Không có dữ liệu"}), 400
         
-        use_test_tables = False
         is_multiple = data.get("is_multiple", False)
-        
-        print(f"[ocr_save] use_test_tables={use_test_tables}, is_multiple={is_multiple}")
         
         errors = []
         if is_multiple:
@@ -1396,7 +1405,7 @@ def ocr_save():
                 
                 if tax_code and tax_code != "-" and customer_name and customer_name != "-" and customer_address and customer_address != "-":
                     customer_manager = CustomerManager()
-                    if not customer_manager.process_and_save_customer(tax_code, customer_name, customer_address, use_test_tables):
+                    if not customer_manager.process_and_save_customer(tax_code, customer_name, customer_address):
                         errors.append(f"Không thể lưu customer: {customer_name}")
                 
                 receipt_code = result.get("transaction_code", "")
@@ -1406,26 +1415,26 @@ def ocr_save():
                 
                 if receipt_code and receipt_code != "-" and receipt_date and receipt_date != "-" and shipment_code and shipment_code != "-" and invoice_number and invoice_number != "-" and tax_code and tax_code != "-":
                     receipt_manager = ReceiptManager()
-                    if not receipt_manager.process_and_save_receipt(receipt_code, receipt_date, shipment_code, invoice_number, tax_code, use_test_tables):
+                    if not receipt_manager.process_and_save_receipt(receipt_code, receipt_date, shipment_code, invoice_number, tax_code):
                         errors.append(f"Không thể lưu receipt: {receipt_code}")
                 
                 items = result.get("items", [])
                 
                 if items:
                     container_manager = ContainerManager()
-                    containers_saved = container_manager.process_and_save_containers(items, use_test_tables)
+                    containers_saved = container_manager.process_and_save_containers(items)
                     if containers_saved == 0:
                         errors.append("Không thể lưu containers")
                     
                     if receipt_date and receipt_date != "-":
                         service_manager = ServiceManager()
-                        services_saved = service_manager.process_and_save_services(items, receipt_date, use_test_tables)
+                        services_saved = service_manager.process_and_save_services(items, receipt_date)
                         if services_saved == 0:
                             errors.append("Không thể lưu services")
                         
                         if receipt_code and receipt_code != "-":
                             line_manager = LineManager()
-                            lines_saved = line_manager.process_and_save_lines(items, receipt_code, receipt_date, use_test_tables)
+                            lines_saved = line_manager.process_and_save_lines(items, receipt_code, receipt_date)
                             if lines_saved == 0:
                                 errors.append("Không thể lưu lines")
         else:
@@ -1436,7 +1445,7 @@ def ocr_save():
             errors = []
             if tax_code and tax_code != "-" and customer_name and customer_name != "-" and customer_address and customer_address != "-":
                 customer_manager = CustomerManager()
-                if not customer_manager.process_and_save_customer(tax_code, customer_name, customer_address, use_test_tables):
+                if not customer_manager.process_and_save_customer(tax_code, customer_name, customer_address, False):
                     errors.append(f"Không thể lưu customer: {customer_name}")
             
             receipt_code = data.get("transaction_code", "")
@@ -1446,26 +1455,26 @@ def ocr_save():
             
             if receipt_code and receipt_code != "-" and receipt_date and receipt_date != "-" and shipment_code and shipment_code != "-" and invoice_number and invoice_number != "-" and tax_code and tax_code != "-":
                 receipt_manager = ReceiptManager()
-                if not receipt_manager.process_and_save_receipt(receipt_code, receipt_date, shipment_code, invoice_number, tax_code, use_test_tables):
+                if not receipt_manager.process_and_save_receipt(receipt_code, receipt_date, shipment_code, invoice_number, tax_code, False):
                     errors.append(f"Không thể lưu receipt: {receipt_code}")
             
             items = data.get("items", [])
             
             if items:
                 container_manager = ContainerManager()
-                containers_saved = container_manager.process_and_save_containers(items, use_test_tables)
+                containers_saved = container_manager.process_and_save_containers(items, False)
                 if containers_saved == 0:
                     errors.append("Không thể lưu containers")
                 
                 if receipt_date and receipt_date != "-":
                     service_manager = ServiceManager()
-                    services_saved = service_manager.process_and_save_services(items, receipt_date, use_test_tables)
+                    services_saved = service_manager.process_and_save_services(items, receipt_date, False)
                     if services_saved == 0:
                         errors.append("Không thể lưu services")
                     
                     if receipt_code and receipt_code != "-":
                         line_manager = LineManager()
-                        lines_saved = line_manager.process_and_save_lines(items, receipt_code, receipt_date, use_test_tables)
+                        lines_saved = line_manager.process_and_save_lines(items, receipt_code, receipt_date, False)
                         if lines_saved == 0:
                             errors.append("Không thể lưu lines")
         
@@ -1492,14 +1501,14 @@ def ocr_save():
             "message": "Lưu dữ liệu thành công"
         }
         
-        if not use_test_tables:
-            response_data["stats"] = stats
+        response_data["stats"] = stats
         
         return jsonify(response_data)
     except Exception as e:
         print(f"Lỗi khi lưu dữ liệu OCR: {e}")
         traceback.print_exc()
         return jsonify({"success": False, "error": f"Lỗi khi lưu dữ liệu: {str(e)}"}), 500
+
 
 @app.route("/logout")
 def logout():
@@ -1515,29 +1524,15 @@ if __name__ == "__main__":
     ssl_key = os.path.join(root_dir, "config", "certs", "key.pem")
     use_https = os.path.exists(ssl_cert) and os.path.exists(ssl_key)
     
-    if TEST_MODE:
-        port = 5001
-        if use_https:
-            print(f"Server HTTPS chạy trên port: {port}")
-            print(f"URL: https://localhost:{port}")
-        else:
-            print(f"Server HTTP chạy trên port: {port} (chưa có SSL certificate)")
-            print(f"URL: http://localhost:{port}")
-            print(f"Để bật HTTPS, chạy: bash generate_ssl_cert.sh")
-        if use_https:
-            app.run(debug=True, host="0.0.0.0", port=port, ssl_context=(ssl_cert, ssl_key))
-        else:
-            app.run(debug=True, host="0.0.0.0", port=port)
+    port = 5000
+    if use_https:
+        print(f"Server HTTPS chạy trên port: {port}")
+        print(f"URL: https://localhost:{port}")
     else:
-        port = 5000
-        if use_https:
-            print(f"Server HTTPS chạy trên port: {port}")
-            print(f"URL: https://localhost:{port}")
-        else:
-            print(f"Server HTTP chạy trên port: {port} (chưa có SSL certificate)")
-            print(f"URL: http://localhost:{port}")
-            print(f"Để bật HTTPS, chạy: bash generate_ssl_cert.sh")
-        if use_https:
-            app.run(debug=True, host="0.0.0.0", port=port, ssl_context=(ssl_cert, ssl_key))
-        else:
-            app.run(debug=True, host="0.0.0.0", port=port)
+        print(f"Server HTTP chạy trên port: {port} (chưa có SSL certificate)")
+        print(f"URL: http://localhost:{port}")
+        print(f"Để bật HTTPS, chạy: bash generate_ssl_cert.sh")
+    if use_https:
+        app.run(debug=True, host="0.0.0.0", port=port, ssl_context=(ssl_cert, ssl_key))
+    else:
+        app.run(debug=True, host="0.0.0.0", port=port)

@@ -9,11 +9,10 @@ JWT_SECRET_KEY = get_jwt_secret_key()
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 # JWT sẽ tồn tại trong 24 giờ
 
-def generate_token(username: str, role: str, use_test_tables: bool = False) -> str:
+def generate_token(username: str, role: str) -> str:
     payload = {
         "username": username,
         "role": role,
-        "use_test_tables": use_test_tables,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=JWT_EXPIRATION_HOURS),
         "iat": datetime.datetime.utcnow()
     }
@@ -43,7 +42,6 @@ def get_current_user():
             return {
                 "username": payload.get("username"),
                 "role": payload.get("role"),
-                "use_test_tables": payload.get("use_test_tables", False),
                 "auth_method": "token"
             }
     
@@ -52,7 +50,6 @@ def get_current_user():
         return {
             "username": session.get("username"),
             "role": session.get("role"),
-            "use_test_tables": session.get("test_mode", False),
             "auth_method": "session"
         }
     
@@ -98,7 +95,6 @@ def token_required(f):
         request.current_user = {
             "username": payload.get("username"),
             "role": payload.get("role"),
-            "use_test_tables": payload.get("use_test_tables", False),
             "auth_method": "token"
         }
         
@@ -133,7 +129,6 @@ def admin_token_required(f):
         request.current_user = {
             "username": payload.get("username"),
             "role": role,
-            "use_test_tables": payload.get("use_test_tables", False),
             "auth_method": "token"
         }
         
@@ -168,7 +163,6 @@ def editor_or_admin_token_required(f):
         request.current_user = {
             "username": payload.get("username"),
             "role": role,
-            "use_test_tables": payload.get("use_test_tables", False),
             "auth_method": "token"
         }
         
