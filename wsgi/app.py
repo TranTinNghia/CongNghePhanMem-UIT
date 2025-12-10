@@ -14,7 +14,7 @@ import csv
 import io
 from datetime import datetime
 from utils.config_helper import get_flask_secret_key
-from utils.auth_helper import token_or_session_required, generate_token
+from utils.auth_helper import token_or_session_required, token_required, admin_token_required, editor_or_admin_token_required, generate_token
 from utils.ocr_processor import OCRProcessor
 from features.ocr.managers.customers import CustomerManager
 from features.ocr.managers.containers import ContainerManager
@@ -519,16 +519,16 @@ def account_settings():
     if not conn:
         flash("Lỗi kết nối database. Vui lòng thử lại.", "error")
         return render_template("account-settings.html", 
-                             username=username, 
-                             email=session.get("email"), 
-                             phone_number=session.get("phone_number"),
-                             first_name="",
-                             middle_name="",
-                             last_name="",
-                             department="",
-                             department_key="",
-                             departments=departments,
-                             is_admin=is_admin)
+            username=username, 
+            email=session.get("email"), 
+            phone_number=session.get("phone_number"),
+            first_name="",
+            middle_name="",
+            last_name="",
+            department="",
+            department_key="",
+            departments=departments,
+            is_admin=is_admin)
     
     try:
         cursor = conn.cursor()
@@ -574,13 +574,13 @@ def account_settings():
         if not conn:
             flash("Lỗi kết nối database. Vui lòng thử lại.", "error")
             return render_template("account-settings.html", 
-                                 username=username, 
-                                 email=session.get("email"), 
-                                 phone_number=session.get("phone_number"),
-                                 first_name=first_name,
-                                 middle_name=middle_name,
-                                 last_name=last_name,
-                                 department=department)
+                username=username, 
+                email=session.get("email"), 
+                phone_number=session.get("phone_number"),
+                first_name=first_name,
+                middle_name=middle_name,
+                last_name=last_name,
+                department=department)
         
         try:
             conn.autocommit = False
@@ -598,32 +598,32 @@ def account_settings():
                     conn.close()
                     flash("Mật khẩu hiện tại không đúng!", "error")
                     return render_template("account-settings.html", 
-                                         username=username, 
-                                         email=email or session.get("email"), 
-                                         phone_number=phone_number or session.get("phone_number"),
-                                         first_name=first_name,
-                                         middle_name=middle_name,
-                                         last_name=last_name,
-                                         department=department,
-                                         department_key=department_key,
-                                         departments=departments,
-                                         is_admin=is_admin)
+                        username=username, 
+                        email=email or session.get("email"), 
+                        phone_number=phone_number or session.get("phone_number"),
+                        first_name=first_name,
+                        middle_name=middle_name,
+                        last_name=last_name,
+                        department=department,
+                        department_key=department_key,
+                        departments=departments,
+                        is_admin=is_admin)
                 
                 if len(new_password) < 8:
                     conn.rollback()
                     conn.close()
                     flash("Mật khẩu phải có ít nhất 8 ký tự!", "error")
                     return render_template("account-settings.html", 
-                                         username=username, 
-                                         email=email or session.get("email"), 
-                                         phone_number=phone_number or session.get("phone_number"),
-                                         first_name=first_name,
-                                         middle_name=middle_name,
-                                         last_name=last_name,
-                                         department=department,
-                                         department_key=department_key,
-                                         departments=departments,
-                                         is_admin=is_admin)
+                        username=username, 
+                        email=email or session.get("email"), 
+                        phone_number=phone_number or session.get("phone_number"),
+                        first_name=first_name,
+                        middle_name=middle_name,
+                        last_name=last_name,
+                        department=department,
+                        department_key=department_key,
+                        departments=departments,
+                        is_admin=is_admin)
                 
                 if not any(c.islower() for c in new_password):
                     conn.rollback()
@@ -887,7 +887,7 @@ def role_management():
     return render_template("role-management.html", users=users, roles=roles, departments=departments)
 
 @app.route("/api/customer/search", methods=["POST"])
-@login_required
+@token_required
 def search_customer():
     try:
         data = request.get_json()
@@ -914,7 +914,7 @@ def search_customer():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/customer/export-csv", methods=["POST"])
-@login_required
+@token_required
 def export_customer_csv():
     try:
         data = request.get_json()
@@ -992,7 +992,7 @@ def export_customer_csv():
         return jsonify({"success": False, "error": "Có lỗi xảy ra khi xuất CSV"}), 500
 
 @app.route("/api/user/assign-role", methods=["POST"])
-@admin_required
+@admin_token_required
 def assign_user_role():
     try:
         data = request.get_json()
@@ -1020,7 +1020,7 @@ def assign_user_role():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/user/update-info", methods=["POST"])
-@admin_required
+@admin_token_required
 def update_user_info():
     try:
         data = request.get_json()
@@ -1071,7 +1071,7 @@ def dashboard_report():
     return render_template("dashboard-report.html")
 
 @app.route("/api/dashboard/total-customers")
-@login_required
+@token_required
 def api_total_customers():
     try:
         report_service = DashboardReportService()
@@ -1085,7 +1085,7 @@ def api_total_customers():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/customers-list")
-@login_required
+@token_required
 def api_customers_list():
     try:
         report_service = DashboardReportService()
@@ -1096,7 +1096,7 @@ def api_customers_list():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/months-list")
-@login_required
+@token_required
 def api_months_list():
     try:
         report_service = DashboardReportService()
@@ -1107,7 +1107,7 @@ def api_months_list():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/customer-monthly-revenue")
-@login_required
+@token_required
 def api_customer_monthly_revenue():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1124,7 +1124,7 @@ def api_customer_monthly_revenue():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/customer-container-usage")
-@login_required
+@token_required
 def api_customer_container_usage():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1141,6 +1141,7 @@ def api_customer_container_usage():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/monthly-container-usage", methods=["GET"])
+@token_required
 def api_monthly_container_usage():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1157,6 +1158,7 @@ def api_monthly_container_usage():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/monthly-container-type-usage", methods=["GET"])
+@token_required
 def api_monthly_container_type_usage():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1173,7 +1175,7 @@ def api_monthly_container_type_usage():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/customers-by-province")
-@login_required
+@token_required
 def api_customers_by_province():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1190,7 +1192,7 @@ def api_customers_by_province():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/revenue-by-province")
-@login_required
+@token_required
 def api_revenue_by_province():
     try:
         customer_keys = request.args.getlist("customer_key")
@@ -1207,7 +1209,7 @@ def api_revenue_by_province():
         return jsonify({"success": False, "error": "Có lỗi xảy ra"}), 500
 
 @app.route("/api/dashboard/data-version")
-@login_required
+@token_required
 def api_data_version():
     try:
         report_service = DashboardReportService()
@@ -1240,7 +1242,7 @@ def ocr():
     return render_template("ocr.html", can_edit=can_edit, user_role=user_role or "N/A")
 
 @app.route("/ocr/process", methods=["POST"])
-@token_or_session_required
+@token_required
 def ocr_process():
     if "file" not in request.files:
         return jsonify({"success": False, "error": "Không có file được tải lên"})
@@ -1273,7 +1275,7 @@ def ocr_process():
     return jsonify({"success": False, "error": "File không hợp lệ. Vui lòng chọn file PDF."})
 
 @app.route("/ocr/process-multiple", methods=["POST"])
-@token_or_session_required
+@token_required
 def ocr_process_multiple():
     if "files" not in request.files:
         return jsonify({"success": False, "error": "Không có file được tải lên"})
@@ -1324,7 +1326,7 @@ def ocr_process_multiple():
     })
 
 @app.route("/api/customers/count", methods=["GET"])
-@token_or_session_required
+@token_required
 def get_customer_count():
     try:
         count_service = CustomerCountService()
@@ -1339,7 +1341,7 @@ def get_customer_count():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/documents/count", methods=["GET"])
-@token_or_session_required
+@token_required
 def get_document_count():
     try:
         count_service = DocumentCountService()
@@ -1356,7 +1358,7 @@ def get_document_count():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/visits/count", methods=["GET"])
-@token_or_session_required
+@token_required
 def get_visit_count():
     try:
         visit_service = VisitCountService()
@@ -1371,20 +1373,8 @@ def get_visit_count():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/ocr/save", methods=["POST"])
-@token_or_session_required
+@editor_or_admin_token_required
 def ocr_save():
-    # Kiểm tra quyền EDITOR hoặc ADMIN
-    user = getattr(request, 'current_user', None)
-    if not user:
-        return jsonify({"success": False, "error": "Yêu cầu xác thực"}), 401
-    
-    role = user.get("role")
-    if role not in ["ADMIN", "EDITOR"]:
-        if request.is_json or request.path.startswith("/api/"):
-            return jsonify({"success": False, "error": "Không có quyền truy cập. Yêu cầu quyền EDITOR hoặc ADMIN"}), 403
-        from flask import flash, redirect, url_for
-        flash("Bạn không có quyền truy cập trang này!", "error")
-        return redirect(url_for("home"))
     try:
         data = request.get_json()
         if not data:
