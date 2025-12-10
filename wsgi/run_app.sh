@@ -14,12 +14,6 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}🚀 Khởi động Production Server${NC}"
 echo -e "${GREEN}========================================${NC}"
 
-if [[ "$*" == *"--test"* ]]; then
-    echo -e "${YELLOW}⚠️  Cảnh báo: --test flag không được dùng với production server${NC}"
-    echo -e "${YELLOW}   -> Sử dụng: bash run_production_test.sh cho test mode${NC}"
-    exit 1
-fi
-
 if ! command -v gunicorn &> /dev/null; then
     echo -e "${RED}❌ Gunicorn chưa được cài đặt!${NC}"
     echo -e "${YELLOW}   -> Chạy: pip install gunicorn${NC}"

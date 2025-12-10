@@ -6,8 +6,8 @@ backlog = 2048
 workers = multiprocessing.cpu_count() * 2 + 1
 worker_class = "sync"
 worker_connections = 1000
-timeout = 30
-keepalive = 2
+timeout = 120
+keepalive = 5
 
 accesslog = "-"
 errorlog = "-"
@@ -27,4 +27,4 @@ preload_app = True
 max_requests = 1000
 max_requests_jitter = 50
 
-graceful_timeout = 30
+graceful_timeout = 60
