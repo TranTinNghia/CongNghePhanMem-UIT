@@ -44,10 +44,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Uploads
-uploads/
-
-# Config files with sensitive data
-config/config.yaml
-

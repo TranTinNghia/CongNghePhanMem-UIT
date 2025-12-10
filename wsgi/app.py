@@ -1314,7 +1314,6 @@ def ocr_process_multiple():
 @app.route("/api/customers/count", methods=["GET"])
 @token_or_session_required
 def get_customer_count():
-    """API endpoint để lấy số lượng khách hàng đang hoạt động"""
     try:
         count_service = CustomerCountService()
         count = count_service.get_active_customer_count()
