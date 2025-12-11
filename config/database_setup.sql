@@ -11,10 +11,40 @@ INSERT INTO btn.dbo.departments
 VALUES(N'Phòng Công Nghệ Thông Tin');
 INSERT INTO btn.dbo.departments
 (department)
+VALUES(N'Công Ty TNHH MTV Cảng Tân Cảng Cái Mép - Thị Vải (TCTT)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty Cổ Phần Tân Cảng Long Bình (ICD Long Bình)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty TNHH MTV Cảng Tân Cảng Cái Mép (TCCT)');
+INSERT INTO btn.dbo.departments
+(department)
 VALUES(N'Tư lệnh Và Cấp Chỉ Huy');
 INSERT INTO btn.dbo.departments
 (department)
-VALUES(N'Công Ty Cổ Phần Giải Pháp CNTT Tân Cảng');
+VALUES(N'Công Ty Cổ Phần Giải Pháp CNTT Tân Cảng (TCIS)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Trung Tâm Điều Độ');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Phòng Marketing');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty Cổ Phần Cảng Tân Cảng Quốc Tế Cái Mép (TCIT)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty Cổ Phần Tân Cảng Sóng Thần (ICD Sóng Thần)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty Cổ Phần Cảng Cát Lái (TCCL)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty TNHH MTV Cảng Tân Cảng Hiệp Phước (TCHP)');
+INSERT INTO btn.dbo.departments
+(department)
+VALUES(N'Công Ty Cổ Phần Cảng Container Quốc Tế Tân Cảng Hải Phòng (TC-HICT)');
 INSERT INTO btn.dbo.departments
 (department)
 VALUES(N'Phòng Tài Chính - Kế Toán');
