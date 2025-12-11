@@ -1,3 +1,23 @@
+use master;
+create database btn;
+create user new_user with password 'new_password'; -- Tạo tài khoản new_user và password mới
+
+grant connect to new_user;
+grant select, insert, update, delete on all tables in database btn to new_user;
+grant select, insert, update, delete on all sequences in database btn to new_user;
+grant select, insert, update, delete on all views in database btn to new_user;
+grant select, insert, update, delete on all procedures in database btn to new_user;
+grant select, insert, update, delete on all functions in database btn to new_user;
+grant select, insert, update, delete on all triggers in database btn to new_user;
+grant usage, select on all sequences in database btn to new_user;
+grant execute on all procedures in database btn to new_user;
+grant execute on all functions in database btn to new_user;
+grant execute on all triggers in database btn to new_user;
+
+use btn;
+
+-- Lúc này, đăng nhập với tài khoản new_user để thực hiện các thao tác bên dưới:
+
 --------- user setting tables ---------
 
 create table dbo.departments (
