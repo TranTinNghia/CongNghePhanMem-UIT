@@ -60,12 +60,12 @@ if [ "$USE_HTTPS" = true ]; then
         --certfile "$SSL_CERT" \
         --chdir "$SCRIPT_DIR" \
         --log-level warning \
-        wsgi:application
+        wsgi:wsgi_application
 else
     echo -e "${GREEN}🌐 Khởi động HTTP server...${NC}"
     gunicorn \
         --config "$SCRIPT_DIR/gunicorn_config.py" \
         --bind 0.0.0.0:5000 \
         --chdir "$SCRIPT_DIR" \
-        wsgi:application
+        wsgi:wsgi_application
 fi

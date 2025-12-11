@@ -1,0 +1,16 @@
+1. Kiểm tra python đã được cài đặt chưa, chạy lệnh "where python". Kết quả hiển thị ra đường dẫn (Ví dụ):
+
+"C:\Python314\python.exe" hoặc
+"C:\Users\LENOVO\AppData\Local\Programs\Python\Python313\python.exe" hoặc
+"C:\Users\LENOVO\AppData\Local\Microsoft\WindowsApps\python.exe"
+
+2. Cài đặt các package cần thiết:
+pip install -r requirements.txt
+
+Hoặc cài đặt thủ công:
+pip install asgiref gunicorn hypercorn waitress bcrypt flask pyyaml pyjwt pyodbc pymssql pdfplumber pytesseract pdf2image
+
+3. Chạy server trên Windows:
+
+- cd vào thư mục wsgi.
+- Chạy run_app.bat.
