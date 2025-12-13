@@ -1,25 +1,19 @@
 import multiprocessing
 import os
-
 bind = "0.0.0.0:5000"
 backlog = 2048
-
 workers = multiprocessing.cpu_count() * 2 + 1
 worker_class = "sync"
 worker_connections = 1000
 timeout = 120
 keepalive = 5
-
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 keyfile = os.path.join(root_dir, "config", "certs", "key.pem")
 certfile = os.path.join(root_dir, "config", "certs", "cert.pem")
-
 accesslog = "-"
 errorlog = "-"
-loglevel = "warning"
+loglevel = "error"
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
-
 ssl_version = 2
 do_handshake_on_connect = True
 suppress_ragged_eofs = True
@@ -30,9 +24,7 @@ umask = 0
 user = None
 group = None
 tmp_upload_dir = None
-
 preload_app = True
 max_requests = 1000
 max_requests_jitter = 50
-
 graceful_timeout = 60

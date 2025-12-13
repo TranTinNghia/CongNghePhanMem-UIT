@@ -1,18 +1,13 @@
 from typing import Optional, List, Dict
 from utils.db_helper import get_db_connection
-
 class DepartmentService:
-    
     def get_department_key_by_name(self, department_name: str) -> Optional[str]:
         if not department_name:
             return None
-        
         department_name = department_name.strip()
-        
         conn = get_db_connection()
         if not conn:
             return None
-        
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -21,7 +16,6 @@ class DepartmentService:
             )
             result = cursor.fetchone()
             conn.close()
-            
             if result:
                 return result[0]
             return None
@@ -32,12 +26,10 @@ class DepartmentService:
             except:
                 pass
             return None
-    
     def get_all_departments(self) -> List[Dict[str, str]]:
         conn = get_db_connection()
         if not conn:
             return []
-        
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -45,7 +37,6 @@ class DepartmentService:
             )
             results = cursor.fetchall()
             conn.close()
-            
             departments = []
             for row in results:
                 departments.append({
@@ -60,4 +51,3 @@ class DepartmentService:
             except:
                 pass
             return []
-

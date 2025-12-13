@@ -65,7 +65,7 @@ if ($USE_HTTPS) {
         --keyfile "$SSL_KEY" `
         --certfile "$SSL_CERT" `
         --chdir "$SCRIPT_DIR" `
-        --log-level warning `
+        --log-level error `
         wsgi:application
 } else {
     Write-Host "🌐 Khởi động HTTP server..." -ForegroundColor Green

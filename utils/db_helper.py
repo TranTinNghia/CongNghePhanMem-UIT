@@ -6,15 +6,12 @@ except ImportError:
     USE_PYMSSQL = False
 import os
 from utils.config_helper import get_db_config
-
 class CursorWrapper:
     def __init__(self, cursor, is_pymssql):
         self._cursor = cursor
         self._is_pymssql = is_pymssql
-    
     def __getattr__(self, name):
         return getattr(self._cursor, name)
-    
     def execute(self, query, params=None):
         if self._is_pymssql and params is not None:
             query = query.replace("?", "%s")
@@ -22,22 +19,18 @@ class CursorWrapper:
             return self._cursor.execute(query, params)
         else:
             return self._cursor.execute(query)
-    
     def executemany(self, query, params_list):
         if self._is_pymssql:
             query = query.replace("?", "%s")
         return self._cursor.executemany(query, params_list)
-
 class ConnectionWrapper:
     def __init__(self, conn):
         self._conn = conn
         self._is_pymssql = USE_PYMSSQL
-    
     def __getattr__(self, name):
         if name == "autocommit" and self._is_pymssql:
             return False
         return getattr(self._conn, name)
-    
     def __setattr__(self, name, value):
         if name == "autocommit" and self._is_pymssql:
             return
@@ -45,29 +38,22 @@ class ConnectionWrapper:
             super().__setattr__(name, value)
         else:
             setattr(self._conn, name, value)
-    
     def cursor(self):
         cursor = self._conn.cursor()
         return CursorWrapper(cursor, self._is_pymssql)
-    
     def __enter__(self):
         return self
-    
     def __exit__(self, *args):
         if hasattr(self._conn, "close"):
             self._conn.close()
-
-
 def load_config():
     db_config = get_db_config()
     if db_config:
         return db_config
-    
     db_url = os.environ.get("DB_URL")
     db_username = os.environ.get("DB_USERNAME")
     db_password = os.environ.get("DB_PASSWORD")
     db_name = os.environ.get("DB_NAME", "btn")
-    
     if db_url and db_username and db_password:
         return {
             "url": db_url,
@@ -75,17 +61,12 @@ def load_config():
             "password": db_password,
             "database": db_name
         }
-    
     print("Lỗi đọc config: Không tìm thấy cấu hình database")
-    print("Vui lòng kiểm tra file config/config.yaml")
     return None
-
-
 def get_db_connection():
     config = load_config()
     if not config:
         return None
-    
     try:
         if "database" in config:
             url = config["url"]
@@ -96,12 +77,10 @@ def get_db_connection():
             url = config["url"]
             username = config["username"]
             password = config["password"]
-            
             if "databaseName=" in url:
                 database = url.split("databaseName=")[1].split(";")[0]
             else:
                 database = "btn"
-        
         if "//" in url:
             server_part = url.split("//")[1]
             if ":" in server_part:
@@ -114,7 +93,6 @@ def get_db_connection():
         else:
             server = "localhost"
             port = 1433
-        
         if USE_PYMSSQL:
             try:
                 conn = pymssql.connect(
@@ -135,7 +113,6 @@ def get_db_connection():
                 "ODBC Driver 13 for SQL Server",
                 "SQL Server"
             ]
-            
             conn = None
             for driver in drivers:
                 try:
@@ -153,14 +130,11 @@ def get_db_connection():
                 except Exception as e:
                     print(f"Thử driver {driver} thất bại: {e}")
                     continue
-            
             if not conn:
                 raise Exception("Không thể kết nối với bất kỳ ODBC driver nào")
-        
         return ConnectionWrapper(conn)
     except Exception as e:
         print(f"Lỗi kết nối database: {e}")
         import traceback
         traceback.print_exc()
         return None
-

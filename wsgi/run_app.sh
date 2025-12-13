@@ -59,7 +59,7 @@ if [ "$USE_HTTPS" = true ]; then
         --keyfile "$SSL_KEY" \
         --certfile "$SSL_CERT" \
         --chdir "$SCRIPT_DIR" \
-        --log-level warning \
+        --log-level error \
         wsgi:wsgi_application
 else
     echo -e "${GREEN}🌐 Khởi động HTTP server...${NC}"

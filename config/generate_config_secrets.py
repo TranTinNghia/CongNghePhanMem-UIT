@@ -1,10 +1,8 @@
 import secrets
 import yaml
 import os
-
 flask_secret = secrets.token_hex(32)
 jwt_secret = secrets.token_urlsafe(32)
-
 config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
 try:
     with open(config_path, "r", encoding="utf-8") as f:
@@ -15,13 +13,10 @@ except FileNotFoundError:
 except Exception as e:
     print(f"Lỗi đọc config: {e}")
     exit(1)
-
 if "app" not in config:
     config["app"] = {}
-
 config["app"]["flask_secret_key"] = flask_secret
 config["app"]["jwt_secret_key"] = jwt_secret
-
 try:
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)

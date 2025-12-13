@@ -1,17 +1,12 @@
 from typing import Optional
 from utils.db_helper import get_db_connection
-
-
 class ContainerKeyService:
-    
     def get_container_key(self, container_size: str, container_status: str, container_type: str) -> Optional[str]:
         if not container_size or not container_status or not container_type:
             return None
-        
         conn = get_db_connection()
         if not conn:
             return None
-        
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -20,7 +15,6 @@ class ContainerKeyService:
             )
             result = cursor.fetchone()
             conn.close()
-            
             if result:
                 return result[0]
             return None
@@ -31,4 +25,3 @@ class ContainerKeyService:
             except:
                 pass
             return None
-

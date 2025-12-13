@@ -39,7 +39,7 @@ if "%USE_HTTPS%"=="true" (
     echo    URL: https://localhost:5000
     echo ========================================
     echo Starting HTTPS server...
-    python -m hypercorn wsgi:asgi_application --bind 0.0.0.0:5000 --workers %WORKERS% --certfile "%SSL_CERT%" --keyfile "%SSL_KEY%" --keep-alive 5 --graceful-timeout 30 --read-timeout 30
+    python -m hypercorn wsgi:asgi_application --bind 0.0.0.0:5000 --workers %WORKERS% --certfile "%SSL_CERT%" --keyfile "%SSL_KEY%" --keep-alive 5 --graceful-timeout 30 --read-timeout 30 --log-level error
 ) else (
     echo    Protocol: HTTP
     echo    URL: http://localhost:5000
