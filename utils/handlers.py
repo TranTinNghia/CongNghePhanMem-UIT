@@ -1,5 +1,4 @@
 from flask import request, session, flash, redirect, url_for, render_template, jsonify, Response
-from functools import wraps
 import bcrypt
 import uuid
 import json
@@ -352,10 +351,9 @@ class AuthHandler:
                         raise
                     conn.rollback()
                     conn.close()
-                    error_msg = str(ie).lower()
-                    if "user_name" in error_msg or "primary key" in error_msg:
+                    if "user_name" in error_msg_lower or "primary key" in error_msg_lower:
                         flash("Tên đăng nhập đã tồn tại! Vui lòng chọn tên đăng nhập khác.", "error")
-                    elif "email" in error_msg or "unique" in error_msg:
+                    elif "email" in error_msg_lower or "unique" in error_msg_lower:
                         flash("Email đã được sử dụng! Vui lòng sử dụng email khác.", "error")
                     else:
                         flash("Thông tin đã tồn tại! Vui lòng kiểm tra lại.", "error")

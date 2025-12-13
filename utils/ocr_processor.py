@@ -295,7 +295,6 @@ class OCRProcessor:
                     lines = text.splitlines()
                     i = 0
                     current_container = None
-                    container_count = 0
                     while i < len(lines):
                         line = lines[i].strip()
                         if not line:

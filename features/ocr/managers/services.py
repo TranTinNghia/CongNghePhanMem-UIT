@@ -32,9 +32,6 @@ class ServiceManager:
                 container_type=service_info["container_type"]
             )
             if not container_key:
-                size = service_info["container_size"]
-                status = service_info["container_status"]
-                ctype = service_info["container_type"]
                 continue
             success = self.service_service.save_service_scd2(
                 service_name=service_info["service_name"],

@@ -39,9 +39,6 @@ class LineManager:
                 container_type=service_info["container_type"]
             )
             if not container_key:
-                size = service_info["container_size"]
-                status = service_info["container_status"]
-                ctype = service_info["container_type"]
                 continue
             service_key = self.line_service.get_service_key(
                 service_name=service_info["service_name"],
