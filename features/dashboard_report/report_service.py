@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List, Dict
 from utils.db_helper import get_db_connection
 class DashboardReportService:
+
     def get_total_customers(self) -> Optional[int]:
         conn = get_db_connection()
         if not conn:
@@ -23,6 +24,7 @@ class DashboardReportService:
             except:
                 pass
             return None
+
     def get_customers_list(self) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -30,7 +32,7 @@ class DashboardReportService:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                
+                "SELECT customer_key, tax_code, customer_name FROM dbo.customers WHERE is_active = N'Y' ORDER BY customer_name"
             )
             results = cursor.fetchall()
             conn.close()
@@ -49,6 +51,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_months_list(self) -> List[str]:
         months = []
         start_date = datetime(2024, 1, 1)
@@ -61,6 +64,7 @@ class DashboardReportService:
             else:
                 current = current.replace(month=current.month + 1)
         return months
+
     def get_customer_monthly_revenue(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -79,7 +83,16 @@ class DashboardReportService:
             where_sql = " AND ".join(where_clauses)
             cursor = conn.cursor()
             cursor.execute(
-                f,
+                f"""SELECT c.customer_key, c.tax_code, c.customer_name,
+                           FORMAT(r.receipt_date, 'MM/yyyy') as month_year,
+                           SUM(l.amount) as total_revenue,
+                           COUNT(DISTINCT l.container_number) as total_containers
+                    FROM dbo.customers c
+                    INNER JOIN dbo.receipts r ON c.customer_key = r.customer_key
+                    INNER JOIN dbo.lines l ON r.receipt_key = l.receipt_key
+                    WHERE {where_sql}
+                    GROUP BY c.customer_key, c.tax_code, c.customer_name, FORMAT(r.receipt_date, 'MM/yyyy')
+                    ORDER BY c.customer_key, FORMAT(r.receipt_date, 'MM/yyyy')""",
                 tuple(params)
             )
             results = cursor.fetchall()
@@ -102,6 +115,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_monthly_container_usage(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -122,7 +136,17 @@ class DashboardReportService:
             where_sql = " AND ".join(where_clauses)
             cursor = conn.cursor()
             cursor.execute(
-                f,
+                f"""SELECT FORMAT(r.receipt_date, 'MM/yyyy') as month_year,
+                           cont.container_size,
+                           COUNT(DISTINCT l.container_number) as total_count
+                    FROM dbo.customers c
+                    INNER JOIN dbo.receipts r ON c.customer_key = r.customer_key
+                    INNER JOIN dbo.lines l ON r.receipt_key = l.receipt_key
+                    INNER JOIN dbo.services s ON l.service_key = s.service_key
+                    INNER JOIN dbo.containers cont ON s.container_key = cont.container_key
+                    WHERE {where_sql}
+                    GROUP BY FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_size
+                    ORDER BY FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_size""",
                 tuple(params) if params else ()
             )
             results = cursor.fetchall()
@@ -142,6 +166,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_monthly_container_type_usage(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -164,7 +189,17 @@ class DashboardReportService:
             where_sql = " AND ".join(where_clauses)
             cursor = conn.cursor()
             cursor.execute(
-                f,
+                f"""SELECT FORMAT(r.receipt_date, 'MM/yyyy') as month_year,
+                           cont.container_type,
+                           COUNT(DISTINCT l.container_number) as total_count
+                    FROM dbo.customers c
+                    INNER JOIN dbo.receipts r ON c.customer_key = r.customer_key
+                    INNER JOIN dbo.lines l ON r.receipt_key = l.receipt_key
+                    INNER JOIN dbo.services s ON l.service_key = s.service_key
+                    INNER JOIN dbo.containers cont ON s.container_key = cont.container_key
+                    WHERE {where_sql}
+                    GROUP BY FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_type
+                    ORDER BY FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_type""",
                 tuple(params)
             )
             results = cursor.fetchall()
@@ -184,6 +219,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_customer_container_usage(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -202,7 +238,42 @@ class DashboardReportService:
             where_sql = " AND ".join(where_clauses)
             cursor = conn.cursor()
             cursor.execute(
-                f,
+                f"""WITH usage_stats AS (
+                    SELECT c.tax_code, c.customer_name, FORMAT(r.receipt_date, 'MM/yyyy') as month_year,
+                           cont.container_type, cont.container_size,
+                           COUNT(DISTINCT l.container_number) as usage_count
+                    FROM dbo.customers c
+                    INNER JOIN dbo.receipts r ON c.customer_key = r.customer_key
+                    INNER JOIN dbo.lines l ON r.receipt_key = l.receipt_key
+                    INNER JOIN dbo.services s ON l.service_key = s.service_key
+                    INNER JOIN dbo.containers cont ON s.container_key = cont.container_key
+                    WHERE {where_sql}
+                    GROUP BY c.tax_code, c.customer_name, FORMAT(r.receipt_date, 'MM/yyyy'), cont.container_type, cont.container_size
+                ),
+                type_ranked AS (
+                    SELECT tax_code, customer_name, month_year, container_type,
+                           ROW_NUMBER() OVER (PARTITION BY tax_code, customer_name, month_year ORDER BY usage_count DESC) as rn_max_type,
+                           ROW_NUMBER() OVER (PARTITION BY tax_code, customer_name, month_year ORDER BY usage_count ASC) as rn_min_type
+                    FROM usage_stats
+                ),
+                size_ranked AS (
+                    SELECT tax_code, customer_name, month_year, container_size,
+                           ROW_NUMBER() OVER (PARTITION BY tax_code, customer_name, month_year ORDER BY usage_count DESC) as rn_max_size,
+                           ROW_NUMBER() OVER (PARTITION BY tax_code, customer_name, month_year ORDER BY usage_count ASC) as rn_min_size
+                    FROM usage_stats
+                )
+                SELECT DISTINCT us.tax_code, us.customer_name, us.month_year,
+                       MAX(CASE WHEN tr_max.rn_max_type = 1 THEN tr_max.container_type END) as most_used_type,
+                       MAX(CASE WHEN sr_max.rn_max_size = 1 THEN sr_max.container_size END) as most_used_size,
+                       MAX(CASE WHEN tr_min.rn_min_type = 1 THEN tr_min.container_type END) as least_used_type,
+                       MAX(CASE WHEN sr_min.rn_min_size = 1 THEN sr_min.container_size END) as least_used_size
+                FROM usage_stats us
+                LEFT JOIN type_ranked tr_max ON us.tax_code = tr_max.tax_code AND us.customer_name = tr_max.customer_name AND us.month_year = tr_max.month_year AND tr_max.rn_max_type = 1
+                LEFT JOIN type_ranked tr_min ON us.tax_code = tr_min.tax_code AND us.customer_name = tr_min.customer_name AND us.month_year = tr_min.month_year AND tr_min.rn_min_type = 1
+                LEFT JOIN size_ranked sr_max ON us.tax_code = sr_max.tax_code AND us.customer_name = sr_max.customer_name AND us.month_year = sr_max.month_year AND sr_max.rn_max_size = 1
+                LEFT JOIN size_ranked sr_min ON us.tax_code = sr_min.tax_code AND us.customer_name = sr_min.customer_name AND us.month_year = sr_min.month_year AND sr_min.rn_min_size = 1
+                GROUP BY us.tax_code, us.customer_name, us.month_year
+                ORDER BY us.tax_code, us.month_year""",
                 tuple(params)
             )
             results = cursor.fetchall()
@@ -226,6 +297,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_customers_by_province(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -248,7 +320,12 @@ class DashboardReportService:
             where_sql = " AND ".join(where_clauses)
             cursor = conn.cursor()
             cursor.execute(
-                f,
+                f"""SELECT p.new_province as province, COUNT(DISTINCT c.customer_key) as customer_count
+                    FROM dbo.customers c
+                    INNER JOIN dbo.provinces p ON c.province_key = p.province_key
+                    WHERE {where_sql}
+                    GROUP BY p.new_province
+                    ORDER BY customer_count DESC""",
                 tuple(params)
             )
             results = cursor.fetchall()
@@ -267,6 +344,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_revenue_by_province(self, customer_keys: Optional[List[str]] = None, month_years: Optional[List[str]] = None) -> List[Dict]:
         conn = get_db_connection()
         if not conn:
@@ -289,7 +367,14 @@ class DashboardReportService:
             where_sql = " AND ".join(where_clauses)
             cursor = conn.cursor()
             cursor.execute(
-                f,
+                f"""SELECT p.new_province as province, SUM(l.amount) as total_revenue
+                    FROM dbo.customers c
+                    INNER JOIN dbo.provinces p ON c.province_key = p.province_key
+                    INNER JOIN dbo.receipts r ON c.customer_key = r.customer_key
+                    INNER JOIN dbo.lines l ON r.receipt_key = l.receipt_key
+                    WHERE {where_sql}
+                    GROUP BY p.new_province
+                    ORDER BY total_revenue DESC""",
                 tuple(params)
             )
             results = cursor.fetchall()
@@ -308,6 +393,7 @@ class DashboardReportService:
             except:
                 pass
             return []
+
     def get_data_version(self) -> Optional[str]:
         conn = get_db_connection()
         if not conn:
@@ -315,7 +401,10 @@ class DashboardReportService:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                
+                """SELECT 
+                    (SELECT COUNT(*) FROM dbo.customers WHERE is_active = N'Y') as customer_count,
+                    (SELECT COUNT(*) FROM dbo.receipts) as receipt_count,
+                    (SELECT COUNT(*) FROM dbo.lines) as line_count"""
             )
             result = cursor.fetchone()
             conn.close()
