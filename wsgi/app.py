@@ -229,8 +229,6 @@ def get_visit_count():
 def ocr_save():
     return OCRHandler.handle_ocr_save()
 
-
-
 @app.route("/logout")
 def logout():
     session.clear()

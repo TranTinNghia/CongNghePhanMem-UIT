@@ -3,7 +3,6 @@ from flask import request, session
 import json
 from utils.auth_helper import verify_token
 
-
 class ApiLogger:
     @staticmethod
     def log_request():

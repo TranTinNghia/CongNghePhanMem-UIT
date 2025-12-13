@@ -1,0 +1,66 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0" version="29.2.1">
+  <diagram name="Page-1" id="rkHgzsQkS9q4eDhfxddQ">
+    <mxGraphModel dx="1604" dy="714" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Client" vertex="1">
+          <mxGeometry height="60" width="120" x="-31" y="87" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Client" vertex="1">
+          <mxGeometry height="60" width="120" x="-31" y="169" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Webserver&lt;div&gt;(Python Flask - Port 5000)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="190" x="235" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Database Backend&lt;div&gt;(MSSQL - Port 1433)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="169" x="566" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-5" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rKA4_9rYJ98qRLnVrkkM-4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="425" y="155" as="sourcePoint" />
+            <mxPoint x="475" y="105" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-6" connectable="0" parent="rKA4_9rYJ98qRLnVrkkM-5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Giao tiếp nội bộ" vertex="1">
+          <mxGeometry relative="1" x="0.1064" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-8" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rKA4_9rYJ98qRLnVrkkM-3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="89" y="121" as="sourcePoint" />
+            <mxPoint x="139" y="71" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-9" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="rKA4_9rYJ98qRLnVrkkM-3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="87" y="199" as="sourcePoint" />
+            <mxPoint x="233" y="233" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-10" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="JWT" vertex="1">
+          <mxGeometry height="30" width="60" x="140" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-11" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Oauth Bearer 2.0" vertex="1">
+          <mxGeometry height="30" width="60" x="140" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="REST API (https)" vertex="1">
+          <mxGeometry height="41" width="118" x="124" y="198" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-14" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="REST API (https):&lt;div&gt;- Endpoint (URL).&lt;/div&gt;&lt;div&gt;- Header (Content-Type, Authorization, User, Password).&lt;/div&gt;&lt;div&gt;- Payload (Data).&lt;/div&gt;&lt;div&gt;- Method: GET (Select), POST (Insert Into), Put (Update ... set ... where), Delete (Delete, Truncate, Drop).&lt;/div&gt;" vertex="1">
+          <mxGeometry height="102" width="410" x="-124" y="324" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-15" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="JSON Web Token (JWT): Format Token" vertex="1">
+          <mxGeometry height="30" width="253" x="-122.5" y="456" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-16" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Oauth Bearer 2.0" vertex="1">
+          <mxGeometry height="30" width="216" x="-104" y="493" as="geometry" />
+        </mxCell>
+        <mxCell id="rKA4_9rYJ98qRLnVrkkM-18" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="{&lt;br&gt;&quot;URL&quot; : &quot;https://...&quot;,&lt;div&gt;&quot;Method&quot;: GET/POST/PUT/DELETE&lt;br&gt;&quot;Header&quot;: {&lt;br&gt;&quot;Content-Type&quot; : &quot;application/json&quot;,&lt;br&gt;&quot;Authorization&quot; : &quot;Bearer &amp;lt;JWT Token&amp;gt;&quot;&lt;br&gt;),&lt;br&gt;&quot;Payload&quot; : &quot;...&quot;&lt;br&gt;}&lt;/div&gt;" vertex="1">
+          <mxGeometry height="191" width="493" x="315" y="279.5" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

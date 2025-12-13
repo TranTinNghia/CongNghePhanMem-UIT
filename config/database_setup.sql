@@ -1,22 +1,30 @@
 use master;
+create login new_login with password = 'new_password';
 create database btn;
-create user new_user with password 'new_password'; -- Tạo tài khoản new_user và password mới
-
-grant connect to new_user;
-grant select, insert, update, delete on all tables in database btn to new_user;
-grant select, insert, update, delete on all sequences in database btn to new_user;
-grant select, insert, update, delete on all views in database btn to new_user;
-grant select, insert, update, delete on all procedures in database btn to new_user;
-grant select, insert, update, delete on all functions in database btn to new_user;
-grant select, insert, update, delete on all triggers in database btn to new_user;
-grant usage, select on all sequences in database btn to new_user;
-grant execute on all procedures in database btn to new_user;
-grant execute on all functions in database btn to new_user;
-grant execute on all triggers in database btn to new_user;
-
 use btn;
-
--- Lúc này, đăng nhập với tài khoản new_user để thực hiện các thao tác bên dưới:
+create user new_user for login new_login;
+exec sp_addrolemember @rolename = n'db_owner', @membername = n'new_user';
+exec sp_addrolemember @rolename = n'db_datareader', @membername = n'new_user';
+exec sp_addrolemember @rolename = n'db_datawriter', @membername = n'new_user';
+grant view database state to new_user;
+grant connect to new_user;
+grant select on schema::dbo to new_user;
+grant insert on schema::dbo to new_user;
+grant update on schema::dbo to new_user;
+grant delete on schema::dbo to new_user;
+grant execute on schema::dbo to new_user;
+grant alter on schema::dbo to new_user;
+grant drop on schema::dbo to new_user;
+grant create on schema::dbo to new_user;
+grant select, insert, update, delete on dbo.users to new_user;
+grant select, insert, update, delete on dbo.roles to new_user;
+grant select, insert, update, delete on dbo.departments to new_user;
+grant select, insert, update, delete on dbo.provinces to new_user;
+grant select, insert, update, delete on dbo.customers to new_user;
+grant select, insert, update, delete on dbo.containers to new_user;
+grant select, insert, update, delete on dbo.services to new_user;
+grant select, insert, update, delete on dbo.receipts to new_user;
+grant select, insert, update, delete on dbo.lines to new_user;
 
 --------- user setting tables ---------
 
